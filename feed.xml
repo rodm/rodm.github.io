@@ -1,0 +1,306 @@
+<?xml version="1.0"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Rod's blog</title>
+    <link>http://rodm.github.io/</link>
+    <atom:link href="http://rodm.github.io//feed.xml" rel="self" type="application/rss+xml" />
+    <description>Rod MacKenzie's blog</description>
+    <language>en-gb</language>
+    <pubDate>Fri, 28 Oct 2016 14:47:51 +0100</pubDate>
+    <lastBuildDate>Fri, 28 Oct 2016 14:47:51 +0100</lastBuildDate>
+
+    <item>
+      <title>TeamCity Plugin Development with Gradle</title>
+      <link>http://rodm.github.io//blog/2016/10/teamcity-plugin-development-with-gradle.html</link>
+      <pubDate>Fri, 28 Oct 2016 00:00:00 +0100</pubDate>
+      <guid isPermaLink="false">blog/2016/10/teamcity-plugin-development-with-gradle.html</guid>
+      	<description>
+	&lt;div id=&quot;preamble&quot;&gt;
+&lt;div class=&quot;sectionbody&quot;&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;This post follows the steps in &lt;a href=&quot;https://confluence.jetbrains.com/display/TCD10/Getting+Started+with+Plugin+Development&quot;&gt;Getting Started with Plugin Development&lt;/a&gt;
+but uses &lt;a href=&quot;https://gradle.org&quot;&gt;Gradle&lt;/a&gt; as the build tool with the &lt;a href=&quot;https://plugins.gradle.org/plugin/com.github.rodm.teamcity-server&quot;&gt;Gradle TeamCity plugin&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div id=&quot;toc&quot; class=&quot;toc2&quot;&gt;
+&lt;div id=&quot;toctitle&quot; class=&quot;title&quot;&gt;&lt;/div&gt;
+&lt;ul class=&quot;sectlevel1&quot;&gt;
+&lt;li&gt;&lt;a href=&quot;#step_1_set_up_the_environment&quot;&gt;Step 1 - Set up the environment&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;#step_2_generate_a_gradle_project&quot;&gt;Step 2 - Generate a Gradle project&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;
+&lt;ul class=&quot;sectlevel2&quot;&gt;
+&lt;li&gt;&lt;a href=&quot;#view_the_project_structure&quot;&gt;View the project structure&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;#step_3_edit_the_plugin_descriptor&quot;&gt;Step 3 - Edit the plugin descriptor&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;#step_4_create_the_plugin_sources&quot;&gt;Step 4 - Create the plugin sources&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;
+&lt;ul class=&quot;sectlevel2&quot;&gt;
+&lt;li&gt;&lt;a href=&quot;#a_create_the_plugin_web_resources&quot;&gt;A. Create the plugin web-resources&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;#b_create_the_controller_and_obtain_the_path_to_the_jsp&quot;&gt;B. Create the controller and obtain the path to the JSP&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;#c_update_the_spring_bean_definition&quot;&gt;C. Update the Spring bean definition&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;#step_5_build_the_plugin_with_gradle&quot;&gt;Step 5 - Build the plugin with Gradle&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;#step_6_install_the_plugin_to_teamcity&quot;&gt;Step 6 - Install the plugin to TeamCity&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;sect1&quot;&gt;
+&lt;h2 id=&quot;step_1_set_up_the_environment&quot;&gt;Step 1 - Set up the environment&lt;/h2&gt;
+&lt;div class=&quot;sectionbody&quot;&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;To develop a plugin for TeamCity, first set up a plugin development environment.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;olist arabic&quot;&gt;
+&lt;ol class=&quot;arabic&quot;&gt;
+&lt;li&gt;
+&lt;p&gt;Download and install &lt;a href=&quot;http://www.oracle.com/technetwork/java/javase/downloads/index.html&quot;&gt;Oracle Java&lt;/a&gt;. Java 1.8 is required for TeamCity 10.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Download and install a Java IDE that has Gradle integration&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Download and install &lt;a href=&quot;https://gradle.org/gradle-download&quot;&gt;Gradle&lt;/a&gt;. Follow the &lt;a href=&quot;https://docs.gradle.org/current/userguide/installation.html&quot;&gt;Gradle installation instructions&lt;/a&gt;.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;A TeamCity installation is not needed at this point and will be downloaded and installed later using a task provided
+by the &lt;a href=&quot;https://plugins.gradle.org/plugin/com.github.rodm.teamcity-server&quot;&gt;Gradle TeamCity plugin&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;sect1&quot;&gt;
+&lt;h2 id=&quot;step_2_generate_a_gradle_project&quot;&gt;Step 2 - Generate a Gradle project&lt;/h2&gt;
+&lt;div class=&quot;sectionbody&quot;&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;Unlike Maven, Gradle doesn&amp;#8217;t have archetype support so the initial project structure will be created using Gradle&amp;#8217;s
+init task and the plugin files will be manually created.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;Create a directory called demoPlugin, change into the directory and execute the following command to create
+a Gradle project&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;listingblock&quot;&gt;
+&lt;div class=&quot;content&quot;&gt;
+&lt;pre&gt;$GRADLE_HOME/bin/gradle init&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;Note: On Windows use the &lt;code&gt;gradle.bat&lt;/code&gt; command&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;sect2&quot;&gt;
+&lt;h3 id=&quot;view_the_project_structure&quot;&gt;View the project structure&lt;/h3&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;After the command finishes the directory contains the following files:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;ulist&quot;&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;the &lt;code&gt;build.gradle&lt;/code&gt; file containing a commented-out sample Java project&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;the &lt;code&gt;settings.gradle&lt;/code&gt; file&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;the &lt;code&gt;gradlew&lt;/code&gt; file to run Gradle on Linux and OS X&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;the &lt;code&gt;gradlew.bat&lt;/code&gt; file to run Gradle on Windows&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;the &lt;code&gt;gradle&lt;/code&gt; directory contains the Gradle wrapper used to run Gradle&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;Open the project in an IDE&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;Edit the &lt;code&gt;build.gradle&lt;/code&gt; file and replace the contents with the following&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;listingblock&quot;&gt;
+&lt;div class=&quot;content&quot;&gt;
+&lt;pre class=&quot;prettyprint groovy language-groovy&quot;&gt;&lt;code&gt;plugins {
+  id &apos;java&apos;
+  id &apos;com.github.rodm.teamcity-server&apos; version &apos;0.9.1&apos;
+}
+
+group = &apos;com.demoDomain.teamcity.demoPlugin&apos;
+version = &apos;1.0-SNAPSHOT&apos;
+
+teamcity {
+    version = &apos;10.0&apos;
+}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;The contents of the &lt;code&gt;settings.gradle&lt;/code&gt; file should set the project name as shown&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;listingblock&quot;&gt;
+&lt;div class=&quot;content&quot;&gt;
+&lt;pre class=&quot;prettyprint groovy language-groovy&quot;&gt;&lt;code&gt;rootProject.name = &apos;demoPlugin&apos;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;sect1&quot;&gt;
+&lt;h2 id=&quot;step_3_edit_the_plugin_descriptor&quot;&gt;Step 3 - Edit the plugin descriptor&lt;/h2&gt;
+&lt;div class=&quot;sectionbody&quot;&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;The Gradle plugin supports defining the plugin descriptor in a separate file or in the build file. For this example
+the descriptor will be defined in the &lt;code&gt;build.gradle&lt;/code&gt; file. Add the following &lt;em&gt;server&lt;/em&gt; configuration block containing
+the plugin descriptor to the build file.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;listingblock&quot;&gt;
+&lt;div class=&quot;content&quot;&gt;
+&lt;pre class=&quot;prettyprint groovy language-groovy&quot;&gt;&lt;code&gt;teamcity {
+    version = &apos;10.0&apos;
+
+    server {
+        descriptor {
+            name = project.name
+            displayName = &apos;Demo Plugin&apos;
+            version = project.version
+            vendorName = &apos;Demo Vendor&apos;
+            description = &apos;Demo plugin description&apos;
+            useSeparateClassloader = false
+        }
+    }
+}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;Using the inline descriptor allows the descriptor to use property values generated during the build such as a
+version number or a build timestamp.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;sect1&quot;&gt;
+&lt;h2 id=&quot;step_4_create_the_plugin_sources&quot;&gt;Step 4 - Create the plugin sources&lt;/h2&gt;
+&lt;div class=&quot;sectionbody&quot;&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;Create the following directories for the Java source and plugin resources&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;ulist&quot;&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;code&gt;src/main/java&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;code&gt;src/main/resources/META-INF&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;code&gt;src/main/resources/buildServerResources&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class=&quot;sect2&quot;&gt;
+&lt;h3 id=&quot;a_create_the_plugin_web_resources&quot;&gt;A. Create the plugin web-resources&lt;/h3&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;In the &lt;code&gt;buildServerResources&lt;/code&gt; directory create the &lt;code&gt;Hello.jsp&lt;/code&gt; file. Enter the contents as shown in the
+&lt;a href=&quot;https://confluence.jetbrains.com/display/TCD10/Getting+Started+with+Plugin+Development#GettingStartedwithPluginDevelopment-A.Createthepluginweb-resources&quot;&gt;TeamCity documentation&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;sect2&quot;&gt;
+&lt;h3 id=&quot;b_create_the_controller_and_obtain_the_path_to_the_jsp&quot;&gt;B. Create the controller and obtain the path to the JSP&lt;/h3&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;In the &lt;code&gt;src/main/java&lt;/code&gt; directory create the sub-directories &lt;code&gt;com/demoDomain/teamcity/demoPlugin&lt;/code&gt; then create the
+&lt;code&gt;AppServer.java&lt;/code&gt; file. Enter the contents as shown in the
+&lt;a href=&quot;https://confluence.jetbrains.com/display/TCD10/Getting+Started+with+Plugin+Development#GettingStartedwithPluginDevelopment-B.CreatethecontrollerandobtainthepathtotheJSP&quot;&gt;TeamCity documentation&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;sect2&quot;&gt;
+&lt;h3 id=&quot;c_update_the_spring_bean_definition&quot;&gt;C. Update the Spring bean definition&lt;/h3&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;In the &lt;code&gt;src/main/resources/META-INF&lt;/code&gt; directory create the file &lt;code&gt;build-server-plugin-demo-plugin.xml&lt;/code&gt; and enter the
+contents as shown in the
+&lt;a href=&quot;https://confluence.jetbrains.com/display/TCD10/Getting+Started+with+Plugin+Development#GettingStartedwithPluginDevelopment-C.UpdatetheSpringbeandefinition&quot;&gt;TeamCity documentation&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;sect1&quot;&gt;
+&lt;h2 id=&quot;step_5_build_the_plugin_with_gradle&quot;&gt;Step 5 - Build the plugin with Gradle&lt;/h2&gt;
+&lt;div class=&quot;sectionbody&quot;&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;At the root of the project execute the following command&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;listingblock&quot;&gt;
+&lt;div class=&quot;content&quot;&gt;
+&lt;pre&gt;./gradlew build&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;The &lt;code&gt;build/distributions&lt;/code&gt; directory will contain the &lt;code&gt;demoPlugin-1.0-SNAPSHOT.zip&lt;/code&gt; file.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;sect1&quot;&gt;
+&lt;h2 id=&quot;step_6_install_the_plugin_to_teamcity&quot;&gt;Step 6 - Install the plugin to TeamCity&lt;/h2&gt;
+&lt;div class=&quot;sectionbody&quot;&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;To install and start a TeamCity instance edit the &lt;code&gt;build.gradle&lt;/code&gt; file adding an &lt;em&gt;environments&lt;/em&gt; configuration block
+as shown.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;listingblock&quot;&gt;
+&lt;div class=&quot;content&quot;&gt;
+&lt;pre class=&quot;prettyprint groovy language-groovy&quot;&gt;&lt;code&gt;teamcity {
+    server {
+        descriptor {
+            ...
+        }
+
+        environments {
+            teamcity10 {
+                version = &apos;10.0.2&apos;
+            }
+        }
+    }
+}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;Run &lt;code&gt;./gradlew tasks&lt;/code&gt; to see the new tasks available to download and install TeamCity, tasks to start and stop the
+server and agent, and tasks to deploy and undeploy the plugin.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;To download and install TeamCity for the environment, execute the following command, note this will take some time.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;listingblock&quot;&gt;
+&lt;div class=&quot;content&quot;&gt;
+&lt;pre&gt;./gradlew installTeamcity10&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;To deploy the plugin and start the server execute the following command&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;listingblock&quot;&gt;
+&lt;div class=&quot;content&quot;&gt;
+&lt;pre&gt;./gradlew startTeamcity10Server&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;The first time the TeamCity Server is started a database connection must be selected, the license agreement
+accepted and an administrator account setup. Select &lt;em&gt;Internal HSQLDB&lt;/em&gt; for the database type.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;The TeamCity Demo Plugin should appear in &lt;a href=&quot;http://localhost:8111/admin/admin.html?item=plugins&quot;&gt;Administration|Plugins List&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;The Hello World page is available via &lt;a href=&quot;http://localhost:8111/demoPlugin.html&quot;&gt;http://localhost:8111/demoPlugin.html&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;Completed examples of the build files can be downloaded from the following links &lt;a href=&quot;build.gradle&quot;&gt;build.gradle&lt;/a&gt; and
+&lt;a href=&quot;settings.gradle&quot;&gt;settings.gradle&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+	</description>
+    </item>
+
+  </channel> 
+</rss>
