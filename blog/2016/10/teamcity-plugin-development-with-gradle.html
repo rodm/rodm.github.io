@@ -58,25 +58,31 @@
 
 	<p><em>28 October 2016</em></p>
 
+    <p>Tags: 
+        <a href="/tags/gradle.html">gradle</a>
+    
+        <a href="/tags/teamcity.html">teamcity</a>
+    
+        <a href="/tags/plugin.html">plugin</a>
+    </p>
+
 	<p><div id="preamble">
 <div class="sectionbody">
 <div class="paragraph">
 <p>This post follows the steps in <a href="https://confluence.jetbrains.com/display/TCD10/Getting+Started+with+Plugin+Development">Getting Started with Plugin Development</a>
 but uses <a href="https://gradle.org">Gradle</a> as the build tool with the <a href="https://plugins.gradle.org/plugin/com.github.rodm.teamcity-server">Gradle TeamCity plugin</a>.</p>
 </div>
-<div id="toc" class="toc2">
+<div id="toc" class="toc">
 <div id="toctitle" class="title"></div>
 <ul class="sectlevel1">
 <li><a href="#step_1_set_up_the_environment">Step 1 - Set up the environment</a></li>
-<li><a href="#step_2_generate_a_gradle_project">Step 2 - Generate a Gradle project</a></li>
-<li>
+<li><a href="#step_2_generate_a_gradle_project">Step 2 - Generate a Gradle project</a>
 <ul class="sectlevel2">
 <li><a href="#view_the_project_structure">View the project structure</a></li>
 </ul>
 </li>
 <li><a href="#step_3_edit_the_plugin_descriptor">Step 3 - Edit the plugin descriptor</a></li>
-<li><a href="#step_4_create_the_plugin_sources">Step 4 - Create the plugin sources</a></li>
-<li>
+<li><a href="#step_4_create_the_plugin_sources">Step 4 - Create the plugin sources</a>
 <ul class="sectlevel2">
 <li><a href="#a_create_the_plugin_web_resources">A. Create the plugin web-resources</a></li>
 <li><a href="#b_create_the_controller_and_obtain_the_path_to_the_jsp">B. Create the controller and obtain the path to the JSP</a></li>
@@ -87,7 +93,6 @@ but uses <a href="https://gradle.org">Gradle</a> as the build tool with the <a h
 <li><a href="#step_6_install_the_plugin_to_teamcity">Step 6 - Install the plugin to TeamCity</a></li>
 </ul>
 </div>
-
 </div>
 </div>
 <div class="sect1">
@@ -166,7 +171,7 @@ a Gradle project</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="prettyprint groovy language-groovy"><code>plugins {
+<pre class="prettyprint highlight"><code class="language-groovy" data-lang="groovy">plugins {
   id 'java'
   id 'com.github.rodm.teamcity-server' version '0.9.1'
 }
@@ -184,7 +189,7 @@ teamcity {
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="prettyprint groovy language-groovy"><code>rootProject.name = 'demoPlugin'</code></pre>
+<pre class="prettyprint highlight"><code class="language-groovy" data-lang="groovy">rootProject.name = 'demoPlugin'</code></pre>
 </div>
 </div>
 </div>
@@ -195,12 +200,12 @@ teamcity {
 <div class="sectionbody">
 <div class="paragraph">
 <p>The Gradle plugin supports defining the plugin descriptor in a separate file or in the build file. For this example
-the descriptor will be defined in the <code>build.gradle</code> file. Add the following <em>server</em> configuration block containing
+the descriptor will be defined in the <code>build.gradle</code> file. Add the following 'server' configuration block containing
 the plugin descriptor to the build file.</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="prettyprint groovy language-groovy"><code>teamcity {
+<pre class="prettyprint highlight"><code class="language-groovy" data-lang="groovy">teamcity {
     version = '10.0'
 
     server {
@@ -286,12 +291,12 @@ contents as shown in the
 <h2 id="step_6_install_the_plugin_to_teamcity">Step 6 - Install the plugin to TeamCity</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>To install and start a TeamCity instance edit the <code>build.gradle</code> file adding an <em>environments</em> configuration block
+<p>To install and start a TeamCity instance edit the <code>build.gradle</code> file adding an 'environments' configuration block
 as shown.</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="prettyprint groovy language-groovy"><code>teamcity {
+<pre class="prettyprint highlight"><code class="language-groovy" data-lang="groovy">teamcity {
     server {
         descriptor {
             ...
@@ -328,13 +333,13 @@ server and agent, and tasks to deploy and undeploy the plugin.</p>
 </div>
 <div class="paragraph">
 <p>The first time the TeamCity Server is started a database connection must be selected, the license agreement
-accepted and an administrator account setup. Select <em>Internal HSQLDB</em> for the database type.</p>
+accepted and an administrator account setup. Select 'Internal HSQLDB' for the database type.</p>
 </div>
 <div class="paragraph">
 <p>The TeamCity Demo Plugin should appear in <a href="http://localhost:8111/admin/admin.html?item=plugins">Administration|Plugins List</a>.</p>
 </div>
 <div class="paragraph">
-<p>The Hello World page is available via <a href="http://localhost:8111/demoPlugin.html">http://localhost:8111/demoPlugin.html</a>.</p>
+<p>The Hello World page is available via <a href="http://localhost:8111/demoPlugin.html" class="bare">http://localhost:8111/demoPlugin.html</a>.</p>
 </div>
 <div class="paragraph">
 <p>Completed examples of the build files can be downloaded from the following links <a href="build.gradle">build.gradle</a> and
@@ -364,7 +369,7 @@ accepted and an administrator account setup. Select <em>Internal HSQLDB</em> for
     
     <div id="footer">
       <div class="container">
-        <p class="muted credit">&copy; Rod MacKenzie 2016 | Mixed with <a href="http://getbootstrap.com/">Bootstrap v3.1.1</a> | Baked with <a href="http://jbake.org">JBake v2.3.0</a></p>
+        <p class="muted credit">&copy; Rod MacKenzie 2016 | Mixed with <a href="http://getbootstrap.com/">Bootstrap v3.1.1</a> | Baked with <a href="http://jbake.org">JBake v2.5.0</a></p>
       </div>
     </div>
     

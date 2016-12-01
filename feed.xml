@@ -6,9 +6,353 @@
     <atom:link href="http://rodm.github.io//feed.xml" rel="self" type="application/rss+xml" />
     <description>Rod MacKenzie's blog</description>
     <language>en-gb</language>
-    <pubDate>Fri, 28 Oct 2016 14:47:51 +0100</pubDate>
-    <lastBuildDate>Fri, 28 Oct 2016 14:47:51 +0100</lastBuildDate>
+    <pubDate>Thu, 1 Dec 2016 12:51:42 +0000</pubDate>
+    <lastBuildDate>Thu, 1 Dec 2016 12:51:42 +0000</lastBuildDate>
 
+    <item>
+      <title>Using the Gradle TeamCity plugin - Part 1</title>
+      <link>http://rodm.github.io//blog/2016/11/using-the-gradle-teamcity-plugin-part1.html</link>
+      <pubDate>Wed, 30 Nov 2016 00:00:00 +0000</pubDate>
+      <guid isPermaLink="false">blog/2016/11/using-the-gradle-teamcity-plugin-part1.html</guid>
+      	<description>
+	&lt;div id=&quot;preamble&quot;&gt;
+&lt;div class=&quot;sectionbody&quot;&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;The &lt;a href=&quot;https://rodm.github.io/blog/2016/10/teamcity-plugin-development-with-gradle.html&quot;&gt;previous post&lt;/a&gt; provided a very brief introduction to using the
+&lt;a href=&quot;https://plugins.gradle.org/plugin/com.github.rodm.teamcity-server&quot;&gt;Gradle TeamCity plugin&lt;/a&gt;.
+This is the first post of two on using the plugin and will expand on the plugin&amp;#8217;s configuration properties and tasks,
+introduce agent-side plugin and tools support and a few tips on using the plugin. The second post will cover how to
+setup multiple TeamCity environments to test and debug a plugin.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;The Gradle TeamCity plugin actually consists of 3 plugins and typically each is applied to a separate Gradle project
+in a multi-project setup to build and package the corresponding component of a TeamCity plugin.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;The server-side plugin, &lt;code&gt;com.github.rodm.teamcity-server&lt;/code&gt; adds tasks and dependencies to a Gradle project to build a
+server-side plugin archive. This plugin is required to produced the final plugin archive to be deployed to a TeamCity server.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;The agent-side plugin, &lt;code&gt;com.github.rodm.teamcity-agent&lt;/code&gt; adds tasks and dependencies to a Gradle project to build an
+agent-side plugin archive.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;The third plugin is the common plugin, &lt;code&gt;com.github.rodm.teamcity-common&lt;/code&gt;, this plugin only adds a dependency to a
+Gradle project to support creating a shared library for use by both the agent-side and server-side components.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;We can configure the version of the API to be used by the plugins by setting the &lt;code&gt;version&lt;/code&gt; property in the &lt;code&gt;teamcity&lt;/code&gt;
+configuration. By default it&amp;#8217;s set to &apos;9.0&apos;, it can be set to any release or snapshot version of TeamCity but I
+would recommend setting the version using only the major and minor numbers.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;listingblock&quot;&gt;
+&lt;div class=&quot;content&quot;&gt;
+&lt;pre class=&quot;prettyprint highlight&quot;&gt;&lt;code class=&quot;language-groovy&quot; data-lang=&quot;groovy&quot;&gt;teamcity {
+    version = &apos;9.1&apos;
+}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;We can support changing the version at build time by using a Gradle property. Using a Gradle property to change the
+API version to build against makes it easy to discover any incompatible API changes.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;listingblock&quot;&gt;
+&lt;div class=&quot;content&quot;&gt;
+&lt;pre class=&quot;prettyprint highlight&quot;&gt;&lt;code class=&quot;language-groovy&quot; data-lang=&quot;groovy&quot;&gt;ext {
+    teamcityVersion = findProperty(&apos;teamcity.version&apos;) ?: &apos;9.1&apos;
+}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;With the above configuration, building the plugin against a newer version of the API can be run by providing an
+override to the &lt;code&gt;teamcity.version&lt;/code&gt; property at the command line.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;literalblock&quot;&gt;
+&lt;div class=&quot;content&quot;&gt;
+&lt;pre&gt;$ ./gradlew -Pteamcity.version=10.0 clean build&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;sect1&quot;&gt;
+&lt;h2 id=&quot;common_plugin&quot;&gt;Common plugin&lt;/h2&gt;
+&lt;div class=&quot;sectionbody&quot;&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;The first plugin of the three is the common plugin. This plugin only adds the &lt;code&gt;common-api&lt;/code&gt; dependency to a Gradle
+project. The output of the project, a jar file, can then be packaged with both the agent-side and server-side plugins.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;listingblock&quot;&gt;
+&lt;div class=&quot;content&quot;&gt;
+&lt;pre class=&quot;prettyprint highlight&quot;&gt;&lt;code class=&quot;language-groovy&quot; data-lang=&quot;groovy&quot;&gt;apply plugin: &apos;java&apos;
+apply plugin: &apos;com.github.rodm.teamcity-common&apos;
+
+teamcity {
+    version = teamcityVersion
+}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;The example above shows the &lt;code&gt;version&lt;/code&gt; property being set with the value of the extension property &lt;code&gt;teamcityVersion&lt;/code&gt;,
+this expects the extension property value to be inherited from the root project.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;By default the jar file will contain the project version as part of its name. For a jar file that will be packaged
+into a plugin archive file it may not be necessary to keep the version, we can remove the version from the jar name
+by setting the version property of the &lt;code&gt;jar&lt;/code&gt; task to an empty string.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;listingblock&quot;&gt;
+&lt;div class=&quot;content&quot;&gt;
+&lt;pre class=&quot;prettyprint highlight&quot;&gt;&lt;code class=&quot;language-groovy&quot; data-lang=&quot;groovy&quot;&gt;jar {
+    version = &apos;&apos;
+}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;sect1&quot;&gt;
+&lt;h2 id=&quot;agent_plugin&quot;&gt;Agent plugin&lt;/h2&gt;
+&lt;div class=&quot;sectionbody&quot;&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;The next plugin is the agent-side plugin, it adds the dependency &lt;code&gt;agent-api&lt;/code&gt; to a project and the following
+tasks:-&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;ulist&quot;&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;code&gt;generateAgentDescriptor&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;code&gt;processAgentDescriptor&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;code&gt;agentPlugin&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;The &lt;code&gt;generateAgentDescriptor&lt;/code&gt; task will use the descriptor defined in the Gradle build file and generate an agent-side
+plugin descriptor file in the build directory. The task is disabled if the descriptor is defined to use an external
+file.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;The &lt;code&gt;processAgentDescriptor&lt;/code&gt; task will use the descriptor file defined in the Gradle build file. It will copy the
+descriptor file to the build directory and replace any token in the file with the value defined in the build file.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;The &lt;code&gt;agentPlugin&lt;/code&gt; task packages the agent-side jar, any third-party libraries and plugin descriptor into an agent-side
+plugin archive, a zip file. The agent-side plugin archive is added to the &lt;code&gt;plugin&lt;/code&gt; configuration so that it can be
+used as a dependency by a project building the server-side plugin.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;In addition to adding the above tasks the plugin extends the &lt;code&gt;jar&lt;/code&gt; task to output warnings if the Spring Bean
+descriptor file references any classes that are not included in the agent-side jar file.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;The example below shows the minimum configuration required to create an agent-side plugin descriptor. More descriptor
+properties supported by the plugin can be found in the &lt;a href=&quot;https://github.com/rodm/gradle-teamcity-plugin#examples-1&quot;&gt;examples&lt;/a&gt; of the README file.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;listingblock&quot;&gt;
+&lt;div class=&quot;content&quot;&gt;
+&lt;pre class=&quot;prettyprint highlight&quot;&gt;&lt;code class=&quot;language-groovy&quot; data-lang=&quot;groovy&quot;&gt;teamcity {
+    agent {
+        descriptor {
+            pluginDeployment {
+                useSeparateClassloader = true
+            }
+        }
+    }
+}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;We can include a shared jar built against the &lt;code&gt;common-api&lt;/code&gt; from another Gradle project by adding it as a dependency.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;listingblock&quot;&gt;
+&lt;div class=&quot;content&quot;&gt;
+&lt;pre class=&quot;prettyprint highlight&quot;&gt;&lt;code class=&quot;language-groovy&quot; data-lang=&quot;groovy&quot;&gt;dependencies {
+    compile project(&apos;:common&apos;)
+}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;By default the agent-side plugin archive name is a based on the name of the root Gradle project with &apos;-agent&apos; and
+the project version appended. We can change this by setting the &lt;code&gt;baseName&lt;/code&gt; and &lt;code&gt;version&lt;/code&gt; properties of the &lt;code&gt;agentPlugin&lt;/code&gt;
+task.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;listingblock&quot;&gt;
+&lt;div class=&quot;content&quot;&gt;
+&lt;pre class=&quot;prettyprint highlight&quot;&gt;&lt;code class=&quot;language-groovy&quot; data-lang=&quot;groovy&quot;&gt;agentPlugin {
+    baseName = &apos;pluginName&apos;
+    version = &apos;&apos;
+}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;We can include additional jars, native libraries and scripts in the plugin archive. The files to be included can be
+defined in one or more &lt;code&gt;files&lt;/code&gt; &lt;a href=&quot;https://docs.gradle.org/current/javadoc/org/gradle/api/file/CopySpec.html&quot;&gt;CopySpec&lt;/a&gt; configuration blocks.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;listingblock&quot;&gt;
+&lt;div class=&quot;content&quot;&gt;
+&lt;pre class=&quot;prettyprint highlight&quot;&gt;&lt;code class=&quot;language-groovy&quot; data-lang=&quot;groovy&quot;&gt;teamcity {
+    agent {
+        files {
+            into(&apos;lib&apos;) {
+                from(&apos;path/to/additional/jars&apos;)
+            }
+        }
+        files {
+            into(&apos;bin&apos;) {
+                from(&apos;path/to/scripts&apos;)
+            }
+        }
+    }
+}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;sect2&quot;&gt;
+&lt;h3 id=&quot;a_tool_plugin&quot;&gt;A Tool plugin&lt;/h3&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;The agent-side plugin can also produce a tool plugin. A tool plugin can be used to repackage an existing tool for
+deployment to TeamCity. The tool is made available to build configurations as a parameter, the parameter is the path
+to where the tool is installed on each build agent.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;A minimal Gradle project to build a tool plugin can apply the agent-side and server-side plugins and use Gradle&amp;#8217;s
+dependency management to download the tool to be repackaged.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;The samples directory for the &lt;a href=&quot;https://github.com/rodm/gradle-teamcity-plugin&quot;&gt;Gradle TeamCity plugin&lt;/a&gt; contains an example project,
+agent-tool-plugin, that shows Apache Maven 3.3.3 being repackaged as a tool. The &lt;a href=&quot;https://github.com/rodm/gradle-teamcity-plugin/blob/master/samples/agent-tool-plugin/build.gradle&quot;&gt;build file&lt;/a&gt;
+shows how the Maven archive is downloaded as a dependency, added to the plugin archive using the &lt;code&gt;files&lt;/code&gt;
+&lt;a href=&quot;https://docs.gradle.org/current/javadoc/org/gradle/api/file/CopySpec.html&quot;&gt;CopySpec&lt;/a&gt; and how the &lt;code&gt;mvn&lt;/code&gt; shell script is set to be executable.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;Creating tool plugins is useful for deploying tools to all TeamCity build agents that are not available using
+the native package manager on the build agent host.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;sect1&quot;&gt;
+&lt;h2 id=&quot;server_plugin&quot;&gt;Server plugin&lt;/h2&gt;
+&lt;div class=&quot;sectionbody&quot;&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;The final plugin is the server-side plugin, it adds the dependency &lt;code&gt;server-api&lt;/code&gt; to the project and the following
+tasks:-&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;ulist&quot;&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;code&gt;generateServerDescriptor&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;code&gt;processServerDescriptor&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;code&gt;serverPlugin&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;The &lt;code&gt;generateServerDescriptor&lt;/code&gt; task will use the descriptor defined in the Gradle build file and generate an server-side
+plugin descriptor file in the build directory. The task is disabled if the descriptor is defined to use an external
+file.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;The &lt;code&gt;processServerDescriptor&lt;/code&gt; task will use the descriptor file defined in the Gradle build file. It will copy the
+descriptor file to the build directory and replace any token in the file with the value defined in the build file.
+An example is shown at the end of this post.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;The &lt;code&gt;serverPlugin&lt;/code&gt; task packages the server-side jar, any third-party libraries, the agent-side plugin archive and
+plugin descriptor into a server-side plugin archive, a zip file.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;A complete set of the descriptor properties supported by the server-side plugin can be found in the
+&lt;a href=&quot;https://github.com/rodm/gradle-teamcity-plugin#examples&quot;&gt;examples&lt;/a&gt; of the README file.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;The server-side plugin, like the agent-side plugin, extends the &lt;code&gt;jar&lt;/code&gt; to output warnings if the Spring Bean descriptor
+file references classes that are not included in the server-side jar file.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;To include a jar from another project that has been built against the &lt;code&gt;common-api&lt;/code&gt; the same configuration
+shown above for the agent-side plugin can be used.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;To include the agent-side plugin archive, the output from a project building the agent-side plugin, can be added to
+the &lt;code&gt;agent&lt;/code&gt; configuration as shown below.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;listingblock&quot;&gt;
+&lt;div class=&quot;content&quot;&gt;
+&lt;pre class=&quot;prettyprint highlight&quot;&gt;&lt;code class=&quot;language-groovy&quot; data-lang=&quot;groovy&quot;&gt;dependencies {
+    agent project(path: &apos;:agent&apos;, configuration: &apos;plugin&apos;)
+}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;The server-side plugin like the agent-side plugin can include additional files, jars or native libs, and scripts in
+the archive using the &lt;code&gt;files&lt;/code&gt; &lt;a href=&quot;https://docs.gradle.org/current/javadoc/org/gradle/api/file/CopySpec.html&quot;&gt;CopySpec&lt;/a&gt; property. The example shown for the agent-side is the
+same for the server-side.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;The default name for the plugin archive is the name of the root Gradle project, this is typically defined in the
+settings.gradle file, and the version property. We can change the name and remove the version from the archive name
+by setting the following properties on the &lt;code&gt;serverPlugin&lt;/code&gt; task.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;listingblock&quot;&gt;
+&lt;div class=&quot;content&quot;&gt;
+&lt;pre class=&quot;prettyprint highlight&quot;&gt;&lt;code class=&quot;language-groovy&quot; data-lang=&quot;groovy&quot;&gt;serverPlugin {
+    baseName = &apos;pluginName&apos;
+    version = &apos;&apos;
+}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;Tokens to be replaced in the plugin descriptor XML file should follow Ant&amp;#8217;s style for tokens, this means they
+should start and end with the &apos;@&apos; character.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;listingblock&quot;&gt;
+&lt;div class=&quot;content&quot;&gt;
+&lt;pre class=&quot;prettyprint highlight&quot;&gt;&lt;code class=&quot;language-xml&quot; data-lang=&quot;xml&quot;&gt;&amp;lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&amp;gt;
+&amp;lt;teamcity-plugin xmlns:xsi=&quot;http://www.w3.org/2001/XMLSchema-instance&quot;
+                 xsi:noNamespaceSchemaLocation=&quot;urn:schemas-jetbrains-com:teamcity-plugin-v1-xml&quot;&amp;gt;
+    &amp;lt;info&amp;gt;
+        &amp;lt;name&amp;gt;server-plugin&amp;lt;/name&amp;gt;
+        &amp;lt;display-name&amp;gt;server-plugin&amp;lt;/display-name&amp;gt;
+        &amp;lt;version&amp;gt;@VERSION@&amp;lt;/version&amp;gt;
+        &amp;lt;description&amp;gt;TeamCity Example Server Plugin&amp;lt;/description&amp;gt;
+        &amp;lt;vendor&amp;gt;
+            &amp;lt;name&amp;gt;@VENDOR_NAME@&amp;lt;/name&amp;gt;
+        &amp;lt;/vendor&amp;gt;
+    &amp;lt;/info&amp;gt;
+    &amp;lt;deployment use-separate-classloader=&quot;true&quot;/&amp;gt;
+&amp;lt;/teamcity-plugin&amp;gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;To replace the tokens in the above file the server-side plugin can be configured, as shown below, to provide a map
+of the tokens and values.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;listingblock&quot;&gt;
+&lt;div class=&quot;content&quot;&gt;
+&lt;pre class=&quot;prettyprint highlight&quot;&gt;&lt;code class=&quot;language-groovy&quot; data-lang=&quot;groovy&quot;&gt;teamcity {
+    server {
+        descriptor = file(&quot;${rootDir}/teamcity-plugin.xml&quot;)
+        tokens VERSION: project.version, VENDOR_NAME: &apos;vendor&apos;
+    }
+}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;This post has hopefully provided more detail and some tips on building TeamCity plugins using the
+&lt;a href=&quot;https://plugins.gradle.org/plugin/com.github.rodm.teamcity-server&quot;&gt;Gradle TeamCity plugin&lt;/a&gt;. The next post will show how to use the plugin to test and
+debug a TeamCity plugin.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+	</description>
+    </item>
     <item>
       <title>TeamCity Plugin Development with Gradle</title>
       <link>http://rodm.github.io//blog/2016/10/teamcity-plugin-development-with-gradle.html</link>
@@ -21,19 +365,17 @@
 &lt;p&gt;This post follows the steps in &lt;a href=&quot;https://confluence.jetbrains.com/display/TCD10/Getting+Started+with+Plugin+Development&quot;&gt;Getting Started with Plugin Development&lt;/a&gt;
 but uses &lt;a href=&quot;https://gradle.org&quot;&gt;Gradle&lt;/a&gt; as the build tool with the &lt;a href=&quot;https://plugins.gradle.org/plugin/com.github.rodm.teamcity-server&quot;&gt;Gradle TeamCity plugin&lt;/a&gt;.&lt;/p&gt;
 &lt;/div&gt;
-&lt;div id=&quot;toc&quot; class=&quot;toc2&quot;&gt;
+&lt;div id=&quot;toc&quot; class=&quot;toc&quot;&gt;
 &lt;div id=&quot;toctitle&quot; class=&quot;title&quot;&gt;&lt;/div&gt;
 &lt;ul class=&quot;sectlevel1&quot;&gt;
 &lt;li&gt;&lt;a href=&quot;#step_1_set_up_the_environment&quot;&gt;Step 1 - Set up the environment&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&quot;#step_2_generate_a_gradle_project&quot;&gt;Step 2 - Generate a Gradle project&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;
+&lt;li&gt;&lt;a href=&quot;#step_2_generate_a_gradle_project&quot;&gt;Step 2 - Generate a Gradle project&lt;/a&gt;
 &lt;ul class=&quot;sectlevel2&quot;&gt;
 &lt;li&gt;&lt;a href=&quot;#view_the_project_structure&quot;&gt;View the project structure&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/li&gt;
 &lt;li&gt;&lt;a href=&quot;#step_3_edit_the_plugin_descriptor&quot;&gt;Step 3 - Edit the plugin descriptor&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&quot;#step_4_create_the_plugin_sources&quot;&gt;Step 4 - Create the plugin sources&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;
+&lt;li&gt;&lt;a href=&quot;#step_4_create_the_plugin_sources&quot;&gt;Step 4 - Create the plugin sources&lt;/a&gt;
 &lt;ul class=&quot;sectlevel2&quot;&gt;
 &lt;li&gt;&lt;a href=&quot;#a_create_the_plugin_web_resources&quot;&gt;A. Create the plugin web-resources&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href=&quot;#b_create_the_controller_and_obtain_the_path_to_the_jsp&quot;&gt;B. Create the controller and obtain the path to the JSP&lt;/a&gt;&lt;/li&gt;
@@ -44,7 +386,6 @@ but uses &lt;a href=&quot;https://gradle.org&quot;&gt;Gradle&lt;/a&gt; as the bu
 &lt;li&gt;&lt;a href=&quot;#step_6_install_the_plugin_to_teamcity&quot;&gt;Step 6 - Install the plugin to TeamCity&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;div class=&quot;sect1&quot;&gt;
@@ -123,7 +464,7 @@ a Gradle project&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class=&quot;listingblock&quot;&gt;
 &lt;div class=&quot;content&quot;&gt;
-&lt;pre class=&quot;prettyprint groovy language-groovy&quot;&gt;&lt;code&gt;plugins {
+&lt;pre class=&quot;prettyprint highlight&quot;&gt;&lt;code class=&quot;language-groovy&quot; data-lang=&quot;groovy&quot;&gt;plugins {
   id &apos;java&apos;
   id &apos;com.github.rodm.teamcity-server&apos; version &apos;0.9.1&apos;
 }
@@ -141,7 +482,7 @@ teamcity {
 &lt;/div&gt;
 &lt;div class=&quot;listingblock&quot;&gt;
 &lt;div class=&quot;content&quot;&gt;
-&lt;pre class=&quot;prettyprint groovy language-groovy&quot;&gt;&lt;code&gt;rootProject.name = &apos;demoPlugin&apos;&lt;/code&gt;&lt;/pre&gt;
+&lt;pre class=&quot;prettyprint highlight&quot;&gt;&lt;code class=&quot;language-groovy&quot; data-lang=&quot;groovy&quot;&gt;rootProject.name = &apos;demoPlugin&apos;&lt;/code&gt;&lt;/pre&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;/div&gt;
@@ -152,12 +493,12 @@ teamcity {
 &lt;div class=&quot;sectionbody&quot;&gt;
 &lt;div class=&quot;paragraph&quot;&gt;
 &lt;p&gt;The Gradle plugin supports defining the plugin descriptor in a separate file or in the build file. For this example
-the descriptor will be defined in the &lt;code&gt;build.gradle&lt;/code&gt; file. Add the following &lt;em&gt;server&lt;/em&gt; configuration block containing
+the descriptor will be defined in the &lt;code&gt;build.gradle&lt;/code&gt; file. Add the following &apos;server&apos; configuration block containing
 the plugin descriptor to the build file.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class=&quot;listingblock&quot;&gt;
 &lt;div class=&quot;content&quot;&gt;
-&lt;pre class=&quot;prettyprint groovy language-groovy&quot;&gt;&lt;code&gt;teamcity {
+&lt;pre class=&quot;prettyprint highlight&quot;&gt;&lt;code class=&quot;language-groovy&quot; data-lang=&quot;groovy&quot;&gt;teamcity {
     version = &apos;10.0&apos;
 
     server {
@@ -243,12 +584,12 @@ contents as shown in the
 &lt;h2 id=&quot;step_6_install_the_plugin_to_teamcity&quot;&gt;Step 6 - Install the plugin to TeamCity&lt;/h2&gt;
 &lt;div class=&quot;sectionbody&quot;&gt;
 &lt;div class=&quot;paragraph&quot;&gt;
-&lt;p&gt;To install and start a TeamCity instance edit the &lt;code&gt;build.gradle&lt;/code&gt; file adding an &lt;em&gt;environments&lt;/em&gt; configuration block
+&lt;p&gt;To install and start a TeamCity instance edit the &lt;code&gt;build.gradle&lt;/code&gt; file adding an &apos;environments&apos; configuration block
 as shown.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class=&quot;listingblock&quot;&gt;
 &lt;div class=&quot;content&quot;&gt;
-&lt;pre class=&quot;prettyprint groovy language-groovy&quot;&gt;&lt;code&gt;teamcity {
+&lt;pre class=&quot;prettyprint highlight&quot;&gt;&lt;code class=&quot;language-groovy&quot; data-lang=&quot;groovy&quot;&gt;teamcity {
     server {
         descriptor {
             ...
@@ -285,13 +626,13 @@ server and agent, and tasks to deploy and undeploy the plugin.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class=&quot;paragraph&quot;&gt;
 &lt;p&gt;The first time the TeamCity Server is started a database connection must be selected, the license agreement
-accepted and an administrator account setup. Select &lt;em&gt;Internal HSQLDB&lt;/em&gt; for the database type.&lt;/p&gt;
+accepted and an administrator account setup. Select &apos;Internal HSQLDB&apos; for the database type.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class=&quot;paragraph&quot;&gt;
 &lt;p&gt;The TeamCity Demo Plugin should appear in &lt;a href=&quot;http://localhost:8111/admin/admin.html?item=plugins&quot;&gt;Administration|Plugins List&lt;/a&gt;.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class=&quot;paragraph&quot;&gt;
-&lt;p&gt;The Hello World page is available via &lt;a href=&quot;http://localhost:8111/demoPlugin.html&quot;&gt;http://localhost:8111/demoPlugin.html&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;The Hello World page is available via &lt;a href=&quot;http://localhost:8111/demoPlugin.html&quot; class=&quot;bare&quot;&gt;http://localhost:8111/demoPlugin.html&lt;/a&gt;.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class=&quot;paragraph&quot;&gt;
 &lt;p&gt;Completed examples of the build files can be downloaded from the following links &lt;a href=&quot;build.gradle&quot;&gt;build.gradle&lt;/a&gt; and
