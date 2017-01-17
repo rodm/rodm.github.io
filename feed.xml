@@ -6,9 +6,136 @@
     <atom:link href="http://rodm.github.io//feed.xml" rel="self" type="application/rss+xml" />
     <description>Rod MacKenzie's blog</description>
     <language>en-gb</language>
-    <pubDate>Sat, 31 Dec 2016 13:54:57 +0000</pubDate>
-    <lastBuildDate>Sat, 31 Dec 2016 13:54:57 +0000</lastBuildDate>
+    <pubDate>Tue, 17 Jan 2017 15:24:41 +0000</pubDate>
+    <lastBuildDate>Tue, 17 Jan 2017 15:24:41 +0000</lastBuildDate>
 
+    <item>
+      <title>Monitoring TeamCity using JMX</title>
+      <link>http://rodm.github.io//blog/2017/01/monitoring-teamcity-using-jmx.html</link>
+      <pubDate>Tue, 17 Jan 2017 00:00:00 +0000</pubDate>
+      <guid isPermaLink="false">blog/2017/01/monitoring-teamcity-using-jmx.html</guid>
+      	<description>
+	&lt;div id=&quot;preamble&quot;&gt;
+&lt;div class=&quot;sectionbody&quot;&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;Most of this post was written a few years ago but I never got around to finishing it. So after adding some images
+showing the MBean attributes as viewed using Java VisualVM and updating the summary, here it is.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;Where I used to work we had been using TeamCity for a number of years, and I developed a plugin to expose a
+number of the server&amp;#8217;s metrics via JMX so that we could track what it was doing over time.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;To give an idea of the attributes that can be monitored by the plugin the following images show the MBean attributes
+for a couple of the objects.
+The first image shows the Build Server&amp;#8217;s MBean attributes. Some of the attributes that will be discussed later
+in this post are BuildQueueSize, RegisteredAgents, NumberOfRunningBuilds and CleanupDuration&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;imageblock&quot; style=&quot;text-align: center&quot;&gt;
+&lt;div class=&quot;content&quot;&gt;
+&lt;img src=&quot;/blog/2017/01/teamcity-server-mbean-attributes.png&quot; alt=&quot;TeamCity Server MBean attributes&quot;&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;The next image shows the MBean attributes for a Build Agent, specifically the Default Agent. If there were more build
+agents, each would appear as a separate node under the Agent node.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;imageblock&quot; style=&quot;text-align: center&quot;&gt;
+&lt;div class=&quot;content&quot;&gt;
+&lt;img src=&quot;/blog/2017/01/teamcity-agent-mbean-attributes.png&quot; alt=&quot;TeamCity Agent MBean attributes&quot;&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;Additionally both have a BuildStatistics node with the following attributes, BuildsStarted, BuildsFinished,
+BuildsInterrupted, SuccessfulBuilds, FailedBuilds and IgnoredBuilds.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;What we started to track was, build agents connected and available to run builds, the number of builds running and
+the number of builds in the build queue. Another important metric was server availability, TeamCity has a cleanup
+process that runs each night and during the cleanup it&amp;#8217;s unavailable. Having teams around the world means there is
+only a small window for the clean up to happen, but we didn&amp;#8217;t know how long it typically took.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;The graph below is from the &lt;a href=&quot;http://munin-monitoring.org/&quot;&gt;Munin&lt;/a&gt; monitoring tool which was configured to collect build agents
+available, running builds and build queue size. These are the BuildServer MBean attributes RegisteredAgents,
+NumberOfRunningBuilds and BuildQueueSize.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;imageblock&quot; style=&quot;text-align: center&quot;&gt;
+&lt;div class=&quot;content&quot;&gt;
+&lt;img src=&quot;/blog/2017/01/teamcity-queue-day.png&quot; alt=&quot;TeamCity Queue for a day&quot;&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;The blue line shows build agents running builds, and it shows that they a kept busy most of the time. The spike in
+the build queue, the red line, above the &apos;Wed 00:00&apos; label is when a number of maintenance builds that run on all the
+agents are scheduled.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;Another example shows the build activity for a week, most days are the same, the days labeled &apos;01&apos; and &apos;02&apos;
+are the weekend.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;imageblock&quot; style=&quot;text-align: center&quot;&gt;
+&lt;div class=&quot;content&quot;&gt;
+&lt;img src=&quot;/blog/2017/01/teamcity-queue-week.png&quot; alt=&quot;TeamCity Queue for a week&quot;&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;Again the nightly maintenance tasks show up as spikes each day. One interesting problem is for day &apos;02&apos;, the
+build queue has a number of builds, agents are availble but the queue doesn&amp;#8217;t decrease. One possible cause of
+this is a build stuck on an agent and the queued builds are maintenance tasks for that agent. Another is a
+resource monitor plugin that we use that can prevent builds from running if the resource isn&amp;#8217;t available,
+i.e. a database server.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;The next graph shows the cleanup time for a month. It shows a variation in the amount of time that TeamCity
+is unavailable, some days its only 15-20 minutes others its 90 minutes or more. There a few points on the
+graph where 0 is recorded, this is due to the server being restarted, the JMX plugin only makes the cleanup
+time available after a cleanup has occurred.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;imageblock&quot; style=&quot;text-align: center&quot;&gt;
+&lt;div class=&quot;content&quot;&gt;
+&lt;img src=&quot;/blog/2017/01/teamcity-cleanup-month.png&quot; alt=&quot;TeamCity clean-up for a month&quot;&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;The time taken is becoming a problem with us having teams around the world using the server, the following issue
+is to address this and should hopefully make it into version 9,
+&lt;a href=&quot;http://youtrack.jetbrains.com/issue/TW-2527&quot;&gt;TW-2527: Ability to have TeamCity server online 24/7&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;sect2&quot;&gt;
+&lt;h3 id=&quot;integration_to_munin&quot;&gt;Integration to Munin&lt;/h3&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;The JMX plugin only provides the current values when queried, to record the values over time and highlight trends the
+&lt;a href=&quot;http://munin-monitoring.org/&quot;&gt;Munin&lt;/a&gt; monitoring tool was configured to collect various values. Munin makes this
+data available in graphs for the current day, week, month and year.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;To integrate with Munin requires a plugin, the jmxquery plugin is available in the Munin plugin GitHub
+repository under the contrib directory.  There are instructions on where to download the plugin and configure
+Munin in this &lt;a href=&quot;https://github.com/rodm/teamcity-jmx-plugin/blob/master/config/munin/README.md&quot;&gt;README&lt;/a&gt; file.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;sect2&quot;&gt;
+&lt;h3 id=&quot;summary&quot;&gt;Summary&lt;/h3&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;That was just a few examples of how &lt;a href=&quot;https://en.wikipedia.org/wiki/Java_Management_Extensions&quot;&gt;JMX&lt;/a&gt; and &lt;a href=&quot;http://munin-monitoring.org/&quot;&gt;Munin&lt;/a&gt; can be used to monitor a continuous
+integration server.
+The graphs produced by Munin allowed normal daily behaviour to be observed and allowed problems to be identified.
+Using &lt;a href=&quot;https://en.wikipedia.org/wiki/Java_Management_Extensions&quot;&gt;JMX&lt;/a&gt; and &lt;a href=&quot;http://munin-monitoring.org/&quot;&gt;Munin&lt;/a&gt; was useful at the time but there maybe better options now for tracking
+what your continuous integration server is doing.
+Newer versions of TeamCity have the &apos;Usage Statistics&apos; page but it may still be useful to collect values using JMX.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;I had the intention of extending the plugin to expose more attributes using JMX but never got around to it.
+The code for plugin is available on &lt;a href=&quot;https://github.com/rodm/teamcity-jmx-plugin&quot;&gt;GitHub&lt;/a&gt; and the project page has instructions on how to
+build it or alternatively it can be downloaded from the &lt;a href=&quot;https://plugins.jetbrains.com/teamcity/plugin/9004-jmx-plugin&quot;&gt;TeamCity Plugins&lt;/a&gt; repository
+or &lt;a href=&quot;https://bintray.com/rodm/teamcity-plugins/teamcity-jmx-plugin&quot;&gt;Bintray&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+	</description>
+    </item>
     <item>
       <title>Using the Gradle TeamCity plugin - Part 2</title>
       <link>http://rodm.github.io//blog/2016/12/using-the-gradle-teamcity-plugin-part2.html</link>
@@ -42,7 +169,7 @@ the plugin being developed can be deployed and tested.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class=&quot;listingblock&quot;&gt;
 &lt;div class=&quot;content&quot;&gt;
-&lt;pre&gt;teamcity {
+&lt;pre class=&quot;prettyprint highlight&quot;&gt;&lt;code class=&quot;language-groovy&quot; data-lang=&quot;groovy&quot;&gt;teamcity {
     environments {
         name {
             version = &apos;9.0&apos;
@@ -54,7 +181,7 @@ the plugin being developed can be deployed and tested.&lt;/p&gt;
             agentOptions = &apos;&apos;
         }
     }
-}&lt;/pre&gt;
+}&lt;/code&gt;&lt;/pre&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;div class=&quot;paragraph&quot;&gt;
@@ -90,14 +217,14 @@ different version is to set the &lt;code&gt;version&lt;/code&gt; and possibly th
 &lt;div class=&quot;listingblock&quot;&gt;
 &lt;div class=&quot;title&quot;&gt;Example environment using TeamCity 10.0.4 and Java 8&lt;/div&gt;
 &lt;div class=&quot;content&quot;&gt;
-&lt;pre&gt;teamcity {
+&lt;pre class=&quot;prettyprint highlight&quot;&gt;&lt;code class=&quot;language-groovy&quot; data-lang=&quot;groovy&quot;&gt;teamcity {
     environments {
         teamcity10 {
             version = &apos;10.0.4&apos;
             javaHome = file(&apos;/path/to/java8&apos;)
         }
     }
-}&lt;/pre&gt;
+}&lt;/code&gt;&lt;/pre&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;/div&gt;
@@ -110,14 +237,14 @@ default values are shown in the following example.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class=&quot;listingblock&quot;&gt;
 &lt;div class=&quot;content&quot;&gt;
-&lt;pre&gt;teamcity {
+&lt;pre class=&quot;prettyprint highlight&quot;&gt;&lt;code class=&quot;language-groovy&quot; data-lang=&quot;groovy&quot;&gt;teamcity {
     environments {
         downloadsDir = &apos;downloads&apos;
         baseDownloadUrl = &apos;http://download.jetbrains.com/teamcity&apos;
         baseDataDir = &apos;data&apos;
         baseHomeDir = &apos;servers&apos;
     }
-}&lt;/pre&gt;
+}&lt;/code&gt;&lt;/pre&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;div class=&quot;paragraph&quot;&gt;
@@ -204,7 +331,7 @@ the &lt;code&gt;servers.dir&lt;/code&gt; property is used to set &lt;code&gt;bas
 &lt;/div&gt;
 &lt;div class=&quot;listingblock&quot;&gt;
 &lt;div class=&quot;content&quot;&gt;
-&lt;pre&gt;ext {
+&lt;pre class=&quot;prettyprint highlight&quot;&gt;&lt;code class=&quot;language-groovy&quot; data-lang=&quot;groovy&quot;&gt;ext {
     downloadsDir = project.findProperty(&apos;downloads.dir&apos;) ?: &quot;$rootDir/downloads&quot;
     serversDir = project.findProperty(&apos;servers.dir&apos;) ?: &quot;$rootDir/servers&quot;
     java7Home = project.findProperty(&apos;java7.home&apos;) ?: &apos;/opt/jdk1.7.0_80&apos;
@@ -229,7 +356,7 @@ teamcity {
             javaHome = file(java8Home)
         }
     }
-}&lt;/pre&gt;
+}&lt;/code&gt;&lt;/pre&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;div class=&quot;paragraph&quot;&gt;

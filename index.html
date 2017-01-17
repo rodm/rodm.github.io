@@ -4,9 +4,9 @@
     <meta charset="utf-8"/>
     <title>Rod's blog</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="">
-    <meta name="author" content="">
-    <meta name="keywords" content="">
+    <meta name="description" content="Rod's blog">
+    <meta name="author" content="Rod MacKenzie">
+    <meta name="keywords" content="java, gradle, teamcity, development">
     <meta name="generator" content="JBake">
 
     <!-- Le styles -->
@@ -45,8 +45,9 @@
         <div class="navbar-collapse collapse">
           <ul class="nav navbar-nav">
             <li><a href="index.html">Home</a></li>
-            <li><a href="about.html">About</a></li>
+            <li><a href="archive.html">Archive</a></li>
             <li><a href="feed.xml">Subscribe</a></li>
+            <li><a href="about.html">About</a></li>
           </ul>
         </div><!--/.nav-collapse -->
       </div>
@@ -55,6 +56,134 @@
 	<div class="page-header">
 		<h1>Blog</h1>
 	</div>
+  			<a href="blog/2017/01/monitoring-teamcity-using-jmx.html"><h1>Monitoring TeamCity using JMX</h1></a>
+  			<p>17 January 2017</p>
+            <p>Tags: 
+                <a href="/tags/teamcity.html">teamcity</a>
+            
+                <a href="/tags/munin.html">munin</a>
+            
+                <a href="/tags/jmx.html">jmx</a>
+            </p>
+            <p><div id="preamble">
+<div class="sectionbody">
+<div class="paragraph">
+<p>Most of this post was written a few years ago but I never got around to finishing it. So after adding some images
+showing the MBean attributes as viewed using Java VisualVM and updating the summary, here it is.</p>
+</div>
+<div class="paragraph">
+<p>Where I used to work we had been using TeamCity for a number of years, and I developed a plugin to expose a
+number of the server&#8217;s metrics via JMX so that we could track what it was doing over time.</p>
+</div>
+<div class="paragraph">
+<p>To give an idea of the attributes that can be monitored by the plugin the following images show the MBean attributes
+for a couple of the objects.
+The first image shows the Build Server&#8217;s MBean attributes. Some of the attributes that will be discussed later
+in this post are BuildQueueSize, RegisteredAgents, NumberOfRunningBuilds and CleanupDuration</p>
+</div>
+<div class="imageblock" style="text-align: center">
+<div class="content">
+<img src="/blog/2017/01/teamcity-server-mbean-attributes.png" alt="TeamCity Server MBean attributes">
+</div>
+</div>
+<div class="paragraph">
+<p>The next image shows the MBean attributes for a Build Agent, specifically the Default Agent. If there were more build
+agents, each would appear as a separate node under the Agent node.</p>
+</div>
+<div class="imageblock" style="text-align: center">
+<div class="content">
+<img src="/blog/2017/01/teamcity-agent-mbean-attributes.png" alt="TeamCity Agent MBean attributes">
+</div>
+</div>
+<div class="paragraph">
+<p>Additionally both have a BuildStatistics node with the following attributes, BuildsStarted, BuildsFinished,
+BuildsInterrupted, SuccessfulBuilds, FailedBuilds and IgnoredBuilds.</p>
+</div>
+<div class="paragraph">
+<p>What we started to track was, build agents connected and available to run builds, the number of builds running and
+the number of builds in the build queue. Another important metric was server availability, TeamCity has a cleanup
+process that runs each night and during the cleanup it&#8217;s unavailable. Having teams around the world means there is
+only a small window for the clean up to happen, but we didn&#8217;t know how long it typically took.</p>
+</div>
+<div class="paragraph">
+<p>The graph below is from the <a href="http://munin-monitoring.org/">Munin</a> monitoring tool which was configured to collect build agents
+available, running builds and build queue size. These are the BuildServer MBean attributes RegisteredAgents,
+NumberOfRunningBuilds and BuildQueueSize.</p>
+</div>
+<div class="imageblock" style="text-align: center">
+<div class="content">
+<img src="/blog/2017/01/teamcity-queue-day.png" alt="TeamCity Queue for a day">
+</div>
+</div>
+<div class="paragraph">
+<p>The blue line shows build agents running builds, and it shows that they a kept busy most of the time. The spike in
+the build queue, the red line, above the 'Wed 00:00' label is when a number of maintenance builds that run on all the
+agents are scheduled.</p>
+</div>
+<div class="paragraph">
+<p>Another example shows the build activity for a week, most days are the same, the days labeled '01' and '02'
+are the weekend.</p>
+</div>
+<div class="imageblock" style="text-align: center">
+<div class="content">
+<img src="/blog/2017/01/teamcity-queue-week.png" alt="TeamCity Queue for a week">
+</div>
+</div>
+<div class="paragraph">
+<p>Again the nightly maintenance tasks show up as spikes each day. One interesting problem is for day '02', the
+build queue has a number of builds, agents are availble but the queue doesn&#8217;t decrease. One possible cause of
+this is a build stuck on an agent and the queued builds are maintenance tasks for that agent. Another is a
+resource monitor plugin that we use that can prevent builds from running if the resource isn&#8217;t available,
+i.e. a database server.</p>
+</div>
+<div class="paragraph">
+<p>The next graph shows the cleanup time for a month. It shows a variation in the amount of time that TeamCity
+is unavailable, some days its only 15-20 minutes others its 90 minutes or more. There a few points on the
+graph where 0 is recorded, this is due to the server being restarted, the JMX plugin only makes the cleanup
+time available after a cleanup has occurred.</p>
+</div>
+<div class="imageblock" style="text-align: center">
+<div class="content">
+<img src="/blog/2017/01/teamcity-cleanup-month.png" alt="TeamCity clean-up for a month">
+</div>
+</div>
+<div class="paragraph">
+<p>The time taken is becoming a problem with us having teams around the world using the server, the following issue
+is to address this and should hopefully make it into version 9,
+<a href="http://youtrack.jetbrains.com/issue/TW-2527">TW-2527: Ability to have TeamCity server online 24/7</a></p>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="integration_to_munin">Integration to Munin</h3>
+<div class="paragraph">
+<p>The JMX plugin only provides the current values when queried, to record the values over time and highlight trends the
+<a href="http://munin-monitoring.org/">Munin</a> monitoring tool was configured to collect various values. Munin makes this
+data available in graphs for the current day, week, month and year.</p>
+</div>
+<div class="paragraph">
+<p>To integrate with Munin requires a plugin, the jmxquery plugin is available in the Munin plugin GitHub
+repository under the contrib directory.  There are instructions on where to download the plugin and configure
+Munin in this <a href="https://github.com/rodm/teamcity-jmx-plugin/blob/master/config/munin/README.md">README</a> file.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="summary">Summary</h3>
+<div class="paragraph">
+<p>That was just a few examples of how <a href="https://en.wikipedia.org/wiki/Java_Management_Extensions">JMX</a> and <a href="http://munin-monitoring.org/">Munin</a> can be used to monitor a continuous
+integration server.
+The graphs produced by Munin allowed normal daily behaviour to be observed and allowed problems to be identified.
+Using <a href="https://en.wikipedia.org/wiki/Java_Management_Extensions">JMX</a> and <a href="http://munin-monitoring.org/">Munin</a> was useful at the time but there maybe better options now for tracking
+what your continuous integration server is doing.
+Newer versions of TeamCity have the 'Usage Statistics' page but it may still be useful to collect values using JMX.</p>
+</div>
+<div class="paragraph">
+<p>I had the intention of extending the plugin to expose more attributes using JMX but never got around to it.
+The code for plugin is available on <a href="https://github.com/rodm/teamcity-jmx-plugin">GitHub</a> and the project page has instructions on how to
+build it or alternatively it can be downloaded from the <a href="https://plugins.jetbrains.com/teamcity/plugin/9004-jmx-plugin">TeamCity Plugins</a> repository
+or <a href="https://bintray.com/rodm/teamcity-plugins/teamcity-jmx-plugin">Bintray</a></p>
+</div>
+</div></p>
   			<a href="blog/2016/12/using-the-gradle-teamcity-plugin-part2.html"><h1>Using the Gradle TeamCity plugin - Part 2</h1></a>
   			<p>30 December 2016</p>
             <p>Tags: 
@@ -93,7 +222,7 @@ the plugin being developed can be deployed and tested.</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre>teamcity {
+<pre class="prettyprint highlight"><code class="language-groovy" data-lang="groovy">teamcity {
     environments {
         name {
             version = '9.0'
@@ -105,7 +234,7 @@ the plugin being developed can be deployed and tested.</p>
             agentOptions = ''
         }
     }
-}</pre>
+}</code></pre>
 </div>
 </div>
 <div class="paragraph">
@@ -141,14 +270,14 @@ different version is to set the <code>version</code> and possibly the <code>java
 <div class="listingblock">
 <div class="title">Example environment using TeamCity 10.0.4 and Java 8</div>
 <div class="content">
-<pre>teamcity {
+<pre class="prettyprint highlight"><code class="language-groovy" data-lang="groovy">teamcity {
     environments {
         teamcity10 {
             version = '10.0.4'
             javaHome = file('/path/to/java8')
         }
     }
-}</pre>
+}</code></pre>
 </div>
 </div>
 </div>
@@ -161,14 +290,14 @@ default values are shown in the following example.</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre>teamcity {
+<pre class="prettyprint highlight"><code class="language-groovy" data-lang="groovy">teamcity {
     environments {
         downloadsDir = 'downloads'
         baseDownloadUrl = 'http://download.jetbrains.com/teamcity'
         baseDataDir = 'data'
         baseHomeDir = 'servers'
     }
-}</pre>
+}</code></pre>
 </div>
 </div>
 <div class="paragraph">
@@ -255,7 +384,7 @@ the <code>servers.dir</code> property is used to set <code>baseHomeDir</code> en
 </div>
 <div class="listingblock">
 <div class="content">
-<pre>ext {
+<pre class="prettyprint highlight"><code class="language-groovy" data-lang="groovy">ext {
     downloadsDir = project.findProperty('downloads.dir') ?: "$rootDir/downloads"
     serversDir = project.findProperty('servers.dir') ?: "$rootDir/servers"
     java7Home = project.findProperty('java7.home') ?: '/opt/jdk1.7.0_80'
@@ -280,7 +409,7 @@ teamcity {
             javaHome = file(java8Home)
         }
     }
-}</pre>
+}</code></pre>
 </div>
 </div>
 <div class="paragraph">
@@ -1205,7 +1334,7 @@ accepted and an administrator account setup. Select 'Internal HSQLDB' for the da
     
     <div id="footer">
       <div class="container">
-        <p class="muted credit">&copy; Rod MacKenzie 2016 | Mixed with <a href="http://getbootstrap.com/">Bootstrap v3.1.1</a> | Baked with <a href="http://jbake.org">JBake v2.5.0</a></p>
+        <p class="muted credit">&copy; Rod MacKenzie 2016-2017 | Mixed with <a href="http://getbootstrap.com/">Bootstrap v3.1.1</a> | Baked with <a href="http://jbake.org">JBake v2.5.0</a></p>
       </div>
     </div>
     
