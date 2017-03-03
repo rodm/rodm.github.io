@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <title>Installing TeamCity using the war file</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Rod's blog">
+    <meta name="author" content="Rod MacKenzie">
+    <meta name="keywords" content="java, gradle, teamcity, development">
+    <meta name="generator" content="JBake">
+
+    <!-- Le styles -->
+    <link href="../../../css/bootstrap.min.css" rel="stylesheet">
+    <link href="../../../css/asciidoctor.css" rel="stylesheet">
+    <link href="../../../css/base.css" rel="stylesheet">
+    <link href="../../../css/prettify.css" rel="stylesheet">
+
+    <!-- HTML5 shim, for IE6-8 support of HTML5 elements -->
+    <!--[if lt IE 9]>
+      <script src="../../../js/html5shiv.min.js"></script>
+    <![endif]-->
+
+    <!-- Fav and touch icons -->
+    <!--<link rel="apple-touch-icon-precomposed" sizes="144x144" href="../assets/ico/apple-touch-icon-144-precomposed.png">
+    <link rel="apple-touch-icon-precomposed" sizes="114x114" href="../assets/ico/apple-touch-icon-114-precomposed.png">
+    <link rel="apple-touch-icon-precomposed" sizes="72x72" href="../assets/ico/apple-touch-icon-72-precomposed.png">
+    <link rel="apple-touch-icon-precomposed" href="../assets/ico/apple-touch-icon-57-precomposed.png">-->
+    <link rel="shortcut icon" href="../../../favicon.ico">
+  </head>
+  <body onload="prettyPrint()">
+    <div id="wrap">
+	
+	<!-- Fixed navbar -->
+    <div class="navbar navbar-default navbar-fixed-top" role="navigation">
+      <div class="container">
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a class="navbar-brand" href="../../../">Rod's blog</a>
+        </div>
+        <div class="navbar-collapse collapse">
+          <ul class="nav navbar-nav">
+            <li><a href="../../../index.html">Home</a></li>
+            <li><a href="../../../archive.html">Archive</a></li>
+            <li><a href="../../../feed.xml">Subscribe</a></li>
+            <li><a href="../../../about.html">About</a></li>
+          </ul>
+          <ul class="nav navbar-nav navbar-right">
+            <li><a href="https://github.com/rodm"><i class="fa fa-github"></i></a></li>
+          </ul>
+        </div><!--/.nav-collapse -->
+      </div>
+    </div>
+    <div class="container">	
+	<div class="page-header">
+		<h1>Installing TeamCity using the war file</h1>
+	</div>
+
+	<p><em>28 February 2017</em></p>
+
+    <p>Tags: 
+        <a href="/tags/teamcity.html">teamcity</a>
+    
+        <a href="/tags/installation.html">installation</a>
+    
+        <a href="/tags/configuration.html">configuration</a>
+    </p>
+
+	<p><div id="preamble">
+<div class="sectionbody">
+<div class="paragraph">
+<p>Most of this post was written a few years ago, like my previous post, but I never got around to finishing it. So after
+tidying up some parts and finishing others, here it is.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="introduction">Introduction</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The recommended installer to use for setting up a TeamCity installation is to use the TeamCity distribution bundled
+with Tomcat. This post is about the setup of TeamCity using the war file that I&#8217;ve used since the first version of
+TeamCity. The setup allows the configuration and supporting scripts to be committed to a version control system and
+makes it easier to upgrade TeamCity, Tomcat and Java. The war file can be downloaded from the
+<a href="https://www.jetbrains.com/teamcity/download/index.html">TeamCity download</a> page by selecting the JavaEE option.</p>
+</div>
+<div class="paragraph">
+<p>The instructions for installing using the war file are here
+<a href="https://confluence.jetbrains.com/display/TCD10/Installing+and+Configuring+the+TeamCity+Server#InstallingandConfiguringtheTeamCityServer-InstallingTeamCityintoExistingJ2EEContainer">Installing TeamCity into Existing J2EE Container</a>,
+but I&#8217;m going to describe my approach that installs TeamCity on a Linux system.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="directory_structure">Directory structure</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>All the packages are installed into the <code>/opt</code> directory. Oracle&#8217;s version of Java is used as OpenJDK is not officially
+supported by JetBrains but it may work, it is unpacked into the <code>/opt</code> directory. A directory for the TeamCity
+application war file, configuration files, and shell scripts is created, <code>/opt/teamcity-server</code>. Tomcat is unpacked
+into the <code>/opt</code> directory and the <code>conf</code> directory is copied to the <code>/opt/teamcity-server</code> directory. A teamcity user
+and group are created using the <code>useradd</code> and <code>groupadd</code> commands and the <code>teamcity-server</code> directory has the owner
+and group settings changed to use these ids.</p>
+</div>
+<div class="paragraph">
+<p>The <code>/opt</code> directory looks like the following:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="prettyprint highlight"><code>drwxr-xr-x  9 root     root     4096 May 19 22:34 apache-tomcat-7.0.54
+drwxr-xr-x  8 uucp          143 4096 Jun 17 04:27 jdk1.7.0_65
+drwxr-xr-x 10 teamcity teamcity 4096 Jan 28 18:08 teamcity-server</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The contents of the directory, <code>/opt/teamcity-server</code>, after installing and adding scripts is as follows.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="prettyprint highlight"><code>drwxr-xr-x 2 teamcity teamcity      4096 Jan 28 18:04 bin
+drwxr-xr-x 3 teamcity teamcity      4096 Jan 28 18:04 conf
+drwxr-xr-x 6 teamcity teamcity      4096 Jan 28 18:08 data
+drwxr-xr-x 2 teamcity teamcity      4096 Jan 28 18:05 logs
+drwxrwxr-x 4 teamcity teamcity      4096 Jan 28 18:08 temp
+drwxrwxr-x 3 teamcity teamcity      4096 Jan 28 18:04 webapps
+drwxrwxr-x 3 teamcity teamcity      4096 Jan 28 18:05 work
+-rw-r--r-- 1 teamcity teamcity 434544596 Jan 28 18:04 TeamCity-8.0.6.war</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The <code>bin</code> directory contains a script to start and stop TeamCity, <code>server.sh</code>. This script calls the <code>startup.sh</code> and
+<code>shutdown.sh</code> scripts in the Tomcat installation directory and sets a number of environment variables and Java
+properties to configure TeamCity and the JVM. The Tomcat environment variables <code>TOMCAT_HOME</code> and <code>TOMCAT_BASE</code> are
+set to the Tomcat install directory and the TeamCity directory, they are explained in the <a href="https://tomcat.apache.org/tomcat-7.0-doc/RUNNING.txt">Tomcat</a>
+documentation. The <code>TEAMCITY_DATA_PATH</code> variable is used to set the TeamCity BuildServer directory. An example of
+the <code>server.sh</code> can be seen <a href="https://github.com/rodm/teamcity-vagrant/blob/409a7f071cb93c1d7f20f82b21b50716f7e97109/files/server/bin/server.sh">here</a>.</p>
+</div>
+<div class="paragraph">
+<p>The data directory is the TeamCity <code>.BuildServer</code> directory that is normally created in the home directory of the user
+that TeamCity runs under. The default is overridden by the <code>server.sh</code> script to use the <code>data</code> directory in
+<code>/opt/teamcity-server</code>. Putting the TeamCity and Tomcat configuration along with the script to start and stop the server
+under the <code>/opt/teamcity-server</code> directory allows the configuration to be stored in a version control system. The
+following directories are excluded from version control <code>logs</code>, <code>temp</code>, <code>webapp</code> and <code>work</code>.
+TeamCity 9 will support storing the configuration in version control but if you&#8217;re using an older version it&#8217;s
+possible using this setup.</p>
+</div>
+<div class="paragraph">
+<p>The <code>logs</code>, <code>temp</code> and <code>work</code> directories are empty directories and are used by Tomcat.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="tomcat_configuration">Tomcat configuration</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The file <code>server.xml</code> in the <code>conf</code> directory is modified, the port the server listens on is changed to the
+default that TeamCity uses, 8111, the shutdown port is changed to 8115, and the redirectPort is changed to 8113.</p>
+</div>
+<div class="paragraph">
+<p>On the connector for port 8111, the acceptCount is set to 100, the redirectPort to 8113, the useBodyEncodingForURI is
+set to true, and maxThreads set to 200. On the connector for port 8113 (changed from 8443), the useBodyEncodingforURI
+is set to true.</p>
+</div>
+<div class="paragraph">
+<p>In the <code>conf/Catalina/localhost</code> directory a Tomcat context file is created, <code>teamcity.xml</code> that references the
+TeamCity war file.</p>
+</div>
+<div class="listingblock">
+<div class="title">teamcity.xml</div>
+<div class="content">
+<pre class="prettyprint highlight"><code class="language-xml" data-lang="xml">&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;Context docBase="${catalina.base}/TeamCity-8.0.6.war"/&gt;</code></pre>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="database">Database</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The TeamCity documentation recommends not using the default HSQLDB database for a production setup. So I used MySQL,
+it can be installed using the Linux package manager. A database is created for TeamCity to use, using the following SQL.
+Here&#8217;s a link to TeamCity&#8217;s documentation on setting up on <a href="https://confluence.jetbrains.com/display/TCD10/Setting+up+an+External+Database#SettingupanExternalDatabase-MySQL">MySQL</a>.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="prettyprint highlight"><code class="language-sql" data-lang="sql">CREATE DATABASE $TEAMCITY_DB_NAME DEFAULT CHARACTER SET utf8;
+
+CREATE USER '$TEAMCITY_DB_USER'@'%' IDENTIFIED BY '$TEAMCITY_DB_PASS';
+GRANT ALL ON $TEAMCITY_DB_NAME.* TO '$TEAMCITY_DB_USER'@'%';
+
+DROP USER ''@'localhost';
+
+DROP USER ''@'teamcity.localdomain';</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The above example uses environment variables to set the database name, user and password, an example setup script
+can be seen <a href="https://github.com/rodm/teamcity-vagrant/blob/409a7f071cb93c1d7f20f82b21b50716f7e97109/scripts/setup-server.sh#L44">here</a>.</p>
+</div>
+<div class="paragraph">
+<p>Before TeamCity added support for using the JDBC driver placed in the <code>&lt;TeamCity data directory&gt;/lib/jdbc</code> it was
+possible to use another directory. Tomcat can be configured to add jars and classes to the classpath by modifying
+the <code>catalina.properties</code> file. The MySQL JDBC driver can be put into the directory <code>shared/lib</code> and the property
+<code>shared.loader</code> in <code>catalina.properties</code> can be changed to <code>shared/lib</code>. This avoids having to put the driver into the
+<code>webapps/ROOT/WEB-INF/lib</code> directory.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="properties">Properties</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The <code>server.sh</code> script used to start and stop TeamCity sets the following properties</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>java.net.preferIPv4Stack=true - Configures Java to prefer using IPv4 for network connections</p>
+</li>
+<li>
+<p>java.rmi.server.hostname=$HOSTNAME - Allows remote JMX monitoring of the server, this must be the hostname for
+remote access and not localhost</p>
+</li>
+<li>
+<p>teamcity.data.path=$TEAMCITY_HOME/data - Overrides the default TeamCity data directory</p>
+</li>
+<li>
+<p>teamcity_logs=$TEAMCITY_HOME/logs - Overrides the default directory for TeamCity logs</p>
+</li>
+<li>
+<p>log4j.configuration=file:$TEAMCITY_HOME/conf/teamcity-server-log4j.xml</p>
+</li>
+<li>
+<p>teamcity.diskSpaceWatcher.threshold=250000 - Reports free space on the server&#8217;s disk usage</p>
+</li>
+<li>
+<p>teamcity.queue.mergeBuilds=true - Combines builds in the queue</p>
+</li>
+<li>
+<p>modification.check.interval=360 - VCS check period</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>The environment variable <code>TEAMCITY_HOME</code> is set to the <code>/opt/teamcity-server</code> directory.</p>
+</div>
+<div class="paragraph">
+<p>The last three properties are TeamCity specific, I don&#8217;t remember where they came from, possibly from the support
+forums, but they are possibly no longer used.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="upgrading">Upgrading</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>One of the main reasons for this setup was to make it easy to upgrade either Java, Tomcat or TeamCity.</p>
+</div>
+<div class="paragraph">
+<p>To upgrade Java just requires unpacking a new version in the <code>/opt</code> directory and updating the <code>JAVA_HOME</code> environment
+variable in the configuration file, <code>/etc/teamcity-server.conf</code>, that is used by the <code>server.sh</code> script.</p>
+</div>
+<div class="paragraph">
+<p>Similarly upgrading Tomcat requires unpacking into the <code>/opt</code> directory and updating the <code>CATALINA_HOME</code> environment
+variable in the file <code>/etc/teamcity-server.conf</code>. Using the <code>CATALINA_BASE</code> environment variable allows the Tomcat
+installation to be separate from the configuration files, <code>conf/catalina.properties</code> and <code>conf/server.xml</code>, used by
+the TeamCity webapp.</p>
+</div>
+<div class="paragraph">
+<p>To upgrade TeamCity, the server is shutdown and the database is backed up. The contents of the <code>logs</code>, <code>temp</code>,
+<code>webapps</code> and <code>work</code> directories can be moved or deleted, the <code>conf/Catalina/localhost/teamcity.xml</code> file is updated
+to reference the new TeamCity war file, and the server is started.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="summary">Summary</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The setup allows for easy upgrades of the various components, Java, Tomcat and TeamCity. All scripts and configuration
+files for Tomcat and TeamCity are under one directory and can be committed to version control. It uses a little
+less disk space than using the official installer, the default build agent and development package are omitted saving
+about 35MB. While this isn&#8217;t much it does avoid the possibility of starting the default build agent which could then
+use about 500MB or more of disk space. I think it is recommended to avoid running a build agent on the same machine
+as the build server.</p>
+</div>
+<div class="paragraph">
+<p>An example of the setup described above can be found in the <a href="https://github.com/rodm/teamcity-vagrant/blob/409a7f071cb93c1d7f20f82b21b50716f7e97109/scripts/setup-server.sh">setup-server.sh</a> script in
+the <a href="https://github.com/rodm/teamcity-vagrant">teamcity-vagrant</a> project.
+It uses Vagrant to setup and start the TeamCity server and up to three Build Agents.</p>
+</div>
+<div class="paragraph">
+<p>This post doesn&#8217;t discuss the setup of TeamCity Build Agents, there is a <a href="https://github.com/rodm/teamcity-vagrant/blob/409a7f071cb93c1d7f20f82b21b50716f7e97109/scripts/setup-agent.sh">setup-agent.sh</a>
+script in the <a href="https://github.com/rodm/teamcity-vagrant">teamcity-vagrant</a> project that downloads the buildAgent.zip file from the server
+and configures the agent. The installation of Build Agents is probably a separate post, I&#8217;ve since created Build Agents
+using <a href="https://www.packer.io/">Packer</a> and repackaged the buildAgent.zip as <code>RPM</code> and <code>deb</code> packages for Linux and a
+<code>pkg</code> file for Mac, but I think most people will be looking at using Docker for running Build Agents.</p>
+</div>
+</div>
+</div></p>
+
+    <div id="disqus_thread"></div>
+    <script type="text/javascript">
+        var disqus_shortname = 'rodmblog';
+        /* * * DON'T EDIT BELOW THIS LINE * * */
+        (function() {
+            var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+            dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        })();
+    </script>
+    <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+    <a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+    <hr />
+	
+		</div>
+		<div id="push"></div>
+    </div>
+    
+    <div id="footer">
+      <div class="container">
+        <p class="muted credit">&copy; Rod MacKenzie 2016-2017 | Mixed with <a href="http://getbootstrap.com/">Bootstrap v3.1.1</a> | Baked with <a href="http://jbake.org">JBake v2.5.1</a></p>
+      </div>
+    </div>
+    
+    <!-- Le javascript
+    ================================================== -->
+    <!-- Placed at the end of the document so the pages load faster -->
+    <script src="../../../js/jquery-1.11.1.min.js"></script>
+    <script src="../../../js/bootstrap.min.js"></script>
+    <script src="../../../js/prettify.js"></script>
+
+    <script>
+        (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+                    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+                m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+        })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+        ga('create', 'UA-85716859-1', 'auto');
+        ga('send', 'pageview');
+
+    </script>
+
+  </body>
+</html>
