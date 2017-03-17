@@ -6,9 +6,403 @@
     <atom:link href="http://rodm.github.io//feed.xml" rel="self" type="application/rss+xml" />
     <description>Rod MacKenzie's blog</description>
     <language>en-gb</language>
-    <pubDate>Fri, 3 Mar 2017 11:37:18 +0000</pubDate>
-    <lastBuildDate>Fri, 3 Mar 2017 11:37:18 +0000</lastBuildDate>
+    <pubDate>Fri, 17 Mar 2017 14:04:04 +0000</pubDate>
+    <lastBuildDate>Fri, 17 Mar 2017 14:04:04 +0000</lastBuildDate>
 
+    <item>
+      <title>TeamCity Versioned Settings with Kotlin</title>
+      <link>http://rodm.github.io//blog/2017/03/teamcity-versioned-settings.html</link>
+      <pubDate>Fri, 17 Mar 2017 00:00:00 +0000</pubDate>
+      <guid isPermaLink="false">blog/2017/03/teamcity-versioned-settings.html</guid>
+      	<description>
+	&lt;div class=&quot;sect1&quot;&gt;
+&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
+&lt;div class=&quot;sectionbody&quot;&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;This post is about my experiments using TeamCity&amp;#8217;s Kotlin DSL after reading the
+&lt;a href=&quot;https://blog.jetbrains.com/teamcity/2016/11/kotlin-configuration-scripts-an-introduction/&quot;&gt;Kotlin Configuration Scripts&lt;/a&gt; series of posts on the TeamCity blog.
+What I wanted to know, is it possible to start a new server and import versioned settings to setup a project with
+one or more build configurations.
+I also wanted to try using Gradle to resolve the Kotlin DSL dependencies.
+My preferred build tool is Gradle and if I add a TeamCity configuration to a project could it be done without
+having to add a Maven POM file to the project.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;All the code used in this post can be found in the following GitHub repository
+&lt;a href=&quot;https://github.com/rodm/teamcity-settings&quot;&gt;teamcity-settings&lt;/a&gt; under the &lt;strong&gt;basic&lt;/strong&gt; branch.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;sect1&quot;&gt;
+&lt;h2 id=&quot;project_setup&quot;&gt;Project Setup&lt;/h2&gt;
+&lt;div class=&quot;sectionbody&quot;&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;The initial project setup I used was a Gradle build file using the &lt;a href=&quot;https://github.com/rodm/gradle-teamcity-plugin&quot;&gt;Gradle TeamCity plugin&lt;/a&gt;
+with an environment configured to use TeamCity 10, this was used for starting and stopping the TeamCity Server and
+Build Agent.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;After starting the server I created a simple project in TeamCity with no VCS root or build configuration, this was
+to get the minimum amount of code as a starting point.
+The project settings were downloaded by selecting the &lt;strong&gt;Download settings in Kotlin format&lt;/strong&gt; under the Actions drop down
+when editing the project.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;The settings are saved in a file called &lt;code&gt;projectSettings.zip&lt;/code&gt;, unpacking this archive gives us the files shown below.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;imageblock&quot; style=&quot;text-align: center&quot;&gt;
+&lt;div class=&quot;content&quot;&gt;
+&lt;img src=&quot;/blog/2017/03/initial-configuration-files.png&quot; alt=&quot;Contents of projectSettings.zip&quot;&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;sect2&quot;&gt;
+&lt;h3 id=&quot;configuring_the_maven_repository_and_dependencies&quot;&gt;Configuring the Maven Repository and Dependencies&lt;/h3&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;After unpacking the &lt;code&gt;projectSettings.zip&lt;/code&gt; file, the Gradle build file needs to be updated with the dependencies that
+will be used to provide type checking and code completion when editing the Kotlin DSL files.
+The Maven POM file contains 2 repository configurations one for the JetBrains Maven repository and one for the TeamCity
+server the settings were downloaded from.
+Only the TeamCity server repository is added, the JetBrains Maven repository and MavenCentral are added by
+the &lt;a href=&quot;https://github.com/rodm/gradle-teamcity-plugin&quot;&gt;Gradle TeamCity plugin&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;listingblock&quot;&gt;
+&lt;div class=&quot;title&quot;&gt;build.gradle&lt;/div&gt;
+&lt;div class=&quot;content&quot;&gt;
+&lt;pre class=&quot;prettyprint highlight&quot;&gt;&lt;code class=&quot;language-groovy&quot; data-lang=&quot;groovy&quot;&gt;repositories {
+    maven {
+        url &apos;http://localhost:8111/app/dsl-plugins-repository&apos;
+    }
+}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;The Maven POM file contains dependencies to the Kotlin standard library &lt;code&gt;kotlin-stdlib&lt;/code&gt;, the Kotlin DSL library
+&lt;code&gt;configs-dsl-kotlin&lt;/code&gt; and to a Kotlin DSL plugins POM file &lt;code&gt;configs-dsl-kotlin-plugins&lt;/code&gt;.
+The Kotlin DSL plugin POM file contains dependencies to 20 Kotlin DSL plugin dependencies, Gradle doesn&amp;#8217;t support
+resolving dependencies from a POM type so each dependency was added to the build file. You can see the list of
+dependencies &lt;a href=&quot;https://github.com/rodm/teamcity-settings/blob/basic/build.gradle#L19-L44&quot;&gt;here&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;Providing the DSL plugins from the TeamCity server means that the server must be started for either Maven or Gradle to
+resolve the dependencies. I don&amp;#8217;t know why these dependencies are provided by the TeamCity server and not available
+from the JetBrains Maven repository but what I have discovered is that the dependencies are generated when the
+server is started and removed when the server is shutdown.
+They can be found in the TeamCity &lt;code&gt;temp&lt;/code&gt; directory in a sub-directory with a name starting with &lt;code&gt;dslPlugins&lt;/code&gt;. In that
+directory there are sub-directories for each of the &lt;code&gt;configs-dsl-kotlin&lt;/code&gt; dependencies and in each directory there
+are 2 files &lt;code&gt;generated-dsl.jar&lt;/code&gt; and &lt;code&gt;sources.jar&lt;/code&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;sect2&quot;&gt;
+&lt;h3 id=&quot;configure_the_main_java_source_set&quot;&gt;Configure the main Java Source Set&lt;/h3&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;The next change to enable Gradle to parse the Kotlin DSL code is to apply the &lt;code&gt;java&lt;/code&gt; plugin and configure the
+&lt;code&gt;main&lt;/code&gt; source set to locate the source in the &lt;code&gt;.teamcity&lt;/code&gt; directory.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;listingblock&quot;&gt;
+&lt;div class=&quot;title&quot;&gt;build.gradle&lt;/div&gt;
+&lt;div class=&quot;content&quot;&gt;
+&lt;pre class=&quot;prettyprint highlight&quot;&gt;&lt;code class=&quot;language-groovy&quot; data-lang=&quot;groovy&quot;&gt;sourceSets {
+    main {
+        java {
+            srcDirs = [&apos;.teamcity&apos;]
+        }
+    }
+}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;This really just configures my IDE with the &lt;code&gt;configs-dsl-kotlin&lt;/code&gt; dependencies in order to parse the code and
+provide highlighting and code completion.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;sect1&quot;&gt;
+&lt;h2 id=&quot;configuring_teamcity&quot;&gt;Configuring TeamCity&lt;/h2&gt;
+&lt;div class=&quot;sectionbody&quot;&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;The project contains the minimum amount of code to setup a project in TeamCity and the next step is to import the
+settings into TeamCity.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;To import the settings from the &lt;a href=&quot;https://github.com/rodm/teamcity-settings&quot;&gt;teamcity-settings&lt;/a&gt; project I setup a VCS root in the Root
+project and set the &lt;strong&gt;Default branch&lt;/strong&gt; field to &lt;strong&gt;refs/heads/basic&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;Using the project I created earlier to generate the initial Kotlin DSL code I selected the &lt;strong&gt;Versioned Settings&lt;/strong&gt; page
+and selected the option &lt;strong&gt;Synchronization enabled&lt;/strong&gt; with the sub-option &lt;strong&gt;use settings from VCS&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;Enabling Versioned Settings Synchronization&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;imageblock&quot; style=&quot;text-align: center&quot;&gt;
+&lt;div class=&quot;content&quot;&gt;
+&lt;img src=&quot;/blog/2017/03/versioned-settings-synchronization.png&quot; alt=&quot;Versioned Settings Enabled&quot;&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;Clicking the Apply button TeamCity shows a warning dialog about scrambled passwords being committed to the
+version control system, this can be ignored, the project configuration doesn&amp;#8217;t contain any passwords. Clicking on
+the OK button TeamCity then shows the &lt;strong&gt;Existing Project Settings Detected&lt;/strong&gt; dialog.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;imageblock&quot; style=&quot;text-align: center&quot;&gt;
+&lt;div class=&quot;content&quot;&gt;
+&lt;img src=&quot;/blog/2017/03/versioned-settings-existing-settings-detected.png&quot; alt=&quot;Settings Detected&quot;&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;After selecting the &lt;strong&gt;Import settings from VCS&lt;/strong&gt; option TeamCity takes a moment to import the settings and configure
+the project.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;My first attempt resulted in the &lt;strong&gt;Versioned Settings&lt;/strong&gt; being disabled, with the option &lt;strong&gt;Use settings from parent project&lt;/strong&gt;
+being selected.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;Disabled Version Settings&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;imageblock&quot; style=&quot;text-align: center&quot;&gt;
+&lt;div class=&quot;content&quot;&gt;
+&lt;img src=&quot;/blog/2017/03/versioned-settings-disabled.png&quot; alt=&quot;Version Settings Disabled&quot;&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;This should be expected, I didn&amp;#8217;t provide the versioned settings configuration in the &lt;code&gt;Project.kt&lt;/code&gt; file.
+After defining a VCS root for the &lt;a href=&quot;https://github.com/rodm/teamcity-settings&quot;&gt;teamcity-settings&lt;/a&gt; project and adding a &lt;code&gt;versionedSettings&lt;/code&gt;
+configuration block, shown below, repeating the steps above resulted in the project being configured to use the version
+controlled settings.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;listingblock&quot;&gt;
+&lt;div class=&quot;title&quot;&gt;Project.kt&lt;/div&gt;
+&lt;div class=&quot;content&quot;&gt;
+&lt;pre class=&quot;prettyprint highlight&quot;&gt;&lt;code class=&quot;language-java&quot; data-lang=&quot;java&quot;&gt;    vcsRoot(GitVcsRoot({
+        uuid = &quot;723408f3-cc0c-42da-b348-dedd4bc030ef&quot;
+        extId = &quot;TeamcitySettings&quot;
+        name = &quot;teamcity-settings&quot;
+        url = &quot;https://github.com/rodm/teamcity-settings&quot;
+        branch = &quot;refs/heads/basic&quot;
+    }))
+
+    features {
+        versionedSettings {
+            id = &quot;PROJECT_EXT_1&quot;
+            mode = VersionedSettings.Mode.ENABLED
+            buildSettingsMode = VersionedSettings.BuildSettingsMode.PREFER_SETTINGS_FROM_VCS
+            rootExtId = &quot;TeamcitySettings&quot;
+            showChanges = true
+            settingsFormat = VersionedSettings.Format.KOTLIN
+        }
+    }&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;sect1&quot;&gt;
+&lt;h2 id=&quot;setting_up_a_build&quot;&gt;Setting up a Build&lt;/h2&gt;
+&lt;div class=&quot;sectionbody&quot;&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;At this point the TeamCity project is using the configuration defined in the VCS repository, so the next step was to
+setup a build configuration to checkout and build the &lt;a href=&quot;https://github.com/rodm/gradle-teamcity-plugin&quot;&gt;Gradle TeamCity plugin&lt;/a&gt; project.
+This project is a Gradle plugin built using the Gradle wrapper, the only requirement is a Java installation.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;The following code defines the VCS root to checkout the project, the build step to call Gradle, a configuration
+parameter used to define the Gradle tasks to execute and a VCS trigger. By default TeamCity will generate the code
+for a build configuration in a separate Kotlin file, I wanted to keep the number of Kotlin files to a minimum so
+put the configuration in the &lt;code&gt;Project.kt&lt;/code&gt; file.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;listingblock&quot;&gt;
+&lt;div class=&quot;title&quot;&gt;Project.kt&lt;/div&gt;
+&lt;div class=&quot;content&quot;&gt;
+&lt;pre class=&quot;prettyprint highlight&quot;&gt;&lt;code class=&quot;language-java&quot; data-lang=&quot;java&quot;&gt;    val buildType = BuildType({
+        uuid = &quot;b9b0cbf7-1665-4fe5-a24d-956280379ef0&quot;
+        extId = &quot;GradleTeamcityPlugin_Build&quot;
+        name = &quot;Build - Java 7&quot;
+
+        vcs {
+            root(vcs)
+        }
+
+        steps {
+            gradle {
+                tasks = &quot;%gradle.tasks%&quot;
+                useGradleWrapper = true
+                gradleWrapperPath = &quot;&quot;
+                enableStacktrace = true
+            }
+        }
+
+        params {
+            param(&quot;gradle.tasks&quot;, &quot;clean build&quot;)
+        }
+
+        triggers {
+            vcs {
+            }
+        }
+    })&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;The complete file can be seen &lt;a href=&quot;https://github.com/rodm/teamcity-settings/blob/basic/.teamcity/GradleTeamCityPlugin/Project.kt&quot;&gt;here&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;After committing the changes, TeamCity updated the project with the build configuration. However the build configuration
+was incomplete, the VCS trigger was missing.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;Missing VCS Trigger&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;imageblock&quot; style=&quot;text-align: center&quot;&gt;
+&lt;div class=&quot;content&quot;&gt;
+&lt;img src=&quot;/blog/2017/03/vcs-trigger-missing.png&quot; alt=&quot;Missing VCS Trigger&quot;&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;The problem was a missing import, after adding the following import statement the build configuration was updated and
+the VCS trigger appeared.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;listingblock&quot;&gt;
+&lt;div class=&quot;title&quot;&gt;Project.kt&lt;/div&gt;
+&lt;div class=&quot;content&quot;&gt;
+&lt;pre class=&quot;prettyprint highlight&quot;&gt;&lt;code class=&quot;language-java&quot; data-lang=&quot;java&quot;&gt;import jetbrains.buildServer.configs.kotlin.v10.triggers.vcs&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;VCS Trigger&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;imageblock&quot; style=&quot;text-align: center&quot;&gt;
+&lt;div class=&quot;content&quot;&gt;
+&lt;img src=&quot;/blog/2017/03/vcs-trigger-default-settings.png&quot; alt=&quot;VCS Trigger&quot;&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;sect1&quot;&gt;
+&lt;h2 id=&quot;configuration_parameters&quot;&gt;Configuration Parameters&lt;/h2&gt;
+&lt;div class=&quot;sectionbody&quot;&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;One last change I made was to make the version of Java used to run the build configurable by using a
+parameter.
+The &lt;code&gt;jdkHome&lt;/code&gt; property was added to the Gradle build step and the parameter defined in the parameters block.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;listingblock&quot;&gt;
+&lt;div class=&quot;title&quot;&gt;Project.kt&lt;/div&gt;
+&lt;div class=&quot;content&quot;&gt;
+&lt;pre class=&quot;prettyprint highlight&quot;&gt;&lt;code class=&quot;language-java&quot; data-lang=&quot;java&quot;&gt;        steps {
+            gradle {
+                tasks = &quot;%gradle.tasks%&quot;
+                useGradleWrapper = true
+                gradleWrapperPath = &quot;&quot;
+                enableStacktrace = true
+                jdkHome = &quot;%java.home%&quot;
+            }
+        }
+
+        params {
+            param(&quot;gradle.tasks&quot;, &quot;clean build&quot;)
+            param(&quot;java.home&quot;, &quot;%java7.home%&quot;)
+        }&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;Setting it to use another parameter &lt;code&gt;java7.home&lt;/code&gt; meant that after TeamCity updated the project the build configuration
+had no compatible build agents..&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;imageblock&quot; style=&quot;text-align: center&quot;&gt;
+&lt;div class=&quot;content&quot;&gt;
+&lt;img src=&quot;/blog/2017/03/incompatible-agents.png&quot; alt=&quot;Incompatible Agents&quot;&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;To fix this required editing the &lt;code&gt;buildAgent.properties&lt;/code&gt; file and adding the &lt;code&gt;java7.home&lt;/code&gt; parameter, after the Build
+Agent re-started the build configuration was compatible again.
+This highlights that it is useful to have the &lt;strong&gt;Show settings changes in builds&lt;/strong&gt; option in &lt;strong&gt;Versioned Settings&lt;/strong&gt; enabled
+and to check the TeamCity server after configuration changes to ensure builds have not been left unable to run.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;sect1&quot;&gt;
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+&lt;div class=&quot;sectionbody&quot;&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;After experimenting for a few days there were some positives and negatives, here is what I liked about using
+the Kotlin DSL.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;ulist&quot;&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;A newly setup TeamCity server can be bootstrapped by importing one or more projects with build configurations
+from settings stored in a VCS repository.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Committing configuration changes show in the &lt;strong&gt;Change Log&lt;/strong&gt; for any affected build configuration, useful when a
+build fails and determining if it is due to a configuration change.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Configuration changes are updated automatically by TeamCity.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;The code for the project and build configuration is easy to read and understand.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;It is possible to create a Gradle build file to support editing the Kotlin DSL files.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;And the negatives:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;ulist&quot;&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;The initial generated code with the project, vcs settings, and build configurations is spread across multiple
+Kotlin files.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;The configuration DSL exposes too much of the implementation language, Kotlin, with each configuration type
+being declared using an object expression, an anonymous class, and each file containing a number of import
+statements.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;The reason for using Kotlin for the DSL was to provide static type checking of the configuration but, as shown
+above with the missing VCS trigger, it doesn&amp;#8217;t help if the imports are wrong and Kotlin uses another function.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;For the IDE or build tool to resolve the &lt;code&gt;configs-dsl-kotlin&lt;/code&gt; dependencies requires a running TeamCity server.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;When editing a configuration block I was expecting to see the code completion dialog show fewer functions to make
+it easier to write, this didn&amp;#8217;t appear to happen. For example, code completion shows the subproject function and many
+others within the steps block.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Due to the above much of the example code shown above was created by editing a project using the TeamCity UI
+then copying and pasting the required parts.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Each type in the configuration appears to require a &lt;code&gt;uuid&lt;/code&gt;, a &lt;code&gt;extId&lt;/code&gt;, and a &lt;code&gt;name&lt;/code&gt; property, its not clear what the
+significance of the &lt;code&gt;uuid&lt;/code&gt; is.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;Configuring TeamCity using the Kotlin DSL works and is mostly readable but it has a number of problems in the steps
+needed to create and maintain the configuration.
+I would prefer the configuration to be in a single file, like &lt;a href=&quot;https://travis-ci.org/&quot;&gt;Travis CI&lt;/a&gt; or &lt;a href=&quot;https://www.appveyor.com/&quot;&gt;AppVeyor&lt;/a&gt;.
+I would also like to see if the number of required properties can be reduced, are &lt;code&gt;uuid&lt;/code&gt; and &lt;code&gt;extId&lt;/code&gt; needed, or
+could they be derived from the &lt;code&gt;name&lt;/code&gt; property.
+Can the dependencies for the Kotlin DSL plugins be published to the JetBrains Maven repository to avoid having
+to start a TeamCity server.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&quot;paragraph&quot;&gt;
+&lt;p&gt;I plan to continue experimenting, to create a project with multiple build configurations, to try build templates
+and to try the &lt;code&gt;teamcity-configs&lt;/code&gt; Maven plugin.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+	</description>
+    </item>
     <item>
       <title>Installing TeamCity using the war file</title>
       <link>http://rodm.github.io//blog/2017/02/installing-teamcity-using-the-war-file.html</link>
